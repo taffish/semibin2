@@ -1,8 +1,9 @@
 FROM mambaorg/micromamba:1.5.10-bookworm-slim
 
-ARG SEMIBIN_VERSION=2.3.0
-ARG SEMIBIN_SDIST_SHA256=d12fb62dd40d6443df04c4b2cf91cb7935b945ad68152b6e6ef06dda55976d48
-ARG SEMIBIN_SDIST_URL=https://files.pythonhosted.org/packages/source/s/semibin/semibin-2.3.0.tar.gz
+ARG SEMIBIN_VERSION=2.4.0
+ARG SEMIBIN_COMMIT=219e067b926cfbd79c8d842c6e7ae1738b76f854
+ARG SEMIBIN_SDIST_SHA256=95eb3304c354079d37a25b35418d19ecce11b03dff64d5b784870493e6e104ac
+ARG SEMIBIN_SDIST_URL=https://files.pythonhosted.org/packages/61/d5/9206a948642dcb6686e9717d863d2e0260941664bb09a27e6144e0a39c42/semibin-2.4.0.tar.gz
 
 USER root
 
@@ -47,9 +48,21 @@ RUN micromamba install -y -n base \
       prodigal \
       ucx \
       rdma-core \
- && micromamba clean -a -y
+ && micromamba clean -a -y \
+ && rm -rf \
+      /opt/conda/include \
+      /opt/conda/share/aclocal \
+      /opt/conda/share/cmake \
+      /opt/conda/share/doc \
+      /opt/conda/share/info \
+      /opt/conda/share/man \
+ && find /opt/conda -type f \( -name '*.a' -o -name '*.pyc' \) -delete \
+ && find /opt/conda/lib/python3.11/site-packages -type d \
+      \( -name '__pycache__' -o -name 'test' -o -name 'tests' \) \
+      -prune -exec rm -rf '{}' '+'
 
 ENV PATH=/opt/conda/bin:${PATH}
+ENV PYTHONDONTWRITEBYTECODE=1
 
 USER root
 
@@ -70,6 +83,7 @@ RUN set -eux; \
     { \
       printf "upstream_repo=https://github.com/BigDataBiology/SemiBin\n"; \
       printf "upstream_tag=v%s\n" "${SEMIBIN_VERSION}"; \
+      printf "upstream_commit=%s\n" "${SEMIBIN_COMMIT}"; \
       printf "runtime_source=bioconda::semibin=%s\n" "${SEMIBIN_VERSION}"; \
       printf "source_archive=pypi::SemiBin==%s\n" "${SEMIBIN_VERSION}"; \
       printf "source_sdist_sha256=%s\n" "${SEMIBIN_SDIST_SHA256}"; \
@@ -119,6 +133,28 @@ grep -c '^>' concatenated.fa | grep -Fx '3' >/dev/null
 rm -rf "$tmp"
 EOF
 
+RUN cat > /opt/semibin2/share/testdata/semibin2-smoke-install-skills.sh <<'EOF'
+#!/bin/sh
+set -eu
+
+tmp="${1:-/tmp/taf-semibin2-skills-$$}"
+rm -rf "$tmp"
+mkdir -p "$tmp"
+cd "$tmp"
+
+SemiBin2 install-skills --skills-dir "$tmp/installed" > run.log 2>&1
+
+test -s installed/semibin/SKILL.md
+test -s installed/semibin/references/developer-guide.md
+test -s installed/semibin/references/subcommands.md
+grep -F 'name: semibin' installed/semibin/SKILL.md >/dev/null
+grep -F 'version: 1.0.0' installed/semibin/SKILL.md >/dev/null
+grep -F 'Installed 1 skill(s)' run.log >/dev/null
+test ! -e .claude
+
+rm -rf "$tmp"
+EOF
+
 RUN set -eux; \
     ln -sf /opt/conda/bin/SemiBin2 /usr/local/bin/SemiBin2; \
     ln -sf /opt/conda/bin/python /usr/local/bin/python; \
@@ -129,15 +165,18 @@ RUN set -eux; \
     ln -sf /opt/conda/bin/hmmscan /usr/local/bin/hmmscan; \
     ln -sf /opt/conda/bin/hmmpress /usr/local/bin/hmmpress; \
     ln -sf /opt/conda/bin/prodigal /usr/local/bin/prodigal; \
-    chmod 0755 /opt/semibin2/share/testdata/semibin2-smoke-concat.sh; \
-    python -c 'import importlib.metadata as md; import SemiBin, torch, numpy, pandas, sklearn, igraph, requests, safetensors, tqdm, numexpr; assert md.version("SemiBin") == "2.3.0"; print(md.version("SemiBin"))' | grep -Fx "${SEMIBIN_VERSION}" >/dev/null; \
-    SemiBin2 --version 2>&1 | grep -F "${SEMIBIN_VERSION}" >/dev/null; \
+    chmod 0755 /opt/semibin2/share/testdata/semibin2-smoke-concat.sh /opt/semibin2/share/testdata/semibin2-smoke-install-skills.sh; \
+    python -c "import importlib.metadata as md; import SemiBin, torch, numpy, pandas, sklearn, igraph, requests, safetensors, tqdm, numexpr; assert md.version('SemiBin') == '${SEMIBIN_VERSION}'; print(md.version('SemiBin'))" | grep -Fx "${SEMIBIN_VERSION}" >/dev/null; \
+    python -c "from pathlib import Path; import SemiBin; expected = {'built_environment_model.pt', 'cat_gut_model.pt', 'chicken_caecum_model.pt', 'dog_gut_model.pt', 'global_model.pt', 'human_gut_model.pt', 'human_oral_model.pt', 'mouse_gut_model.pt', 'ocean_model.pt', 'pig_gut_model.pt', 'soil_model.pt', 'wastewater_model.pt'}; found = {path.name for path in (Path(next(iter(SemiBin.__path__))) / 'models').glob('*.pt')}; assert found == expected; print(len(found))" | grep -Fx "12" >/dev/null; \
+    SemiBin2 --version 2>&1 | grep -Fx "${SEMIBIN_VERSION}" >/dev/null; \
     SemiBin2 --help 2>&1 | grep -F "single_easy_bin" >/dev/null; \
     SemiBin2 --help 2>&1 | grep -F "multi_easy_bin" >/dev/null; \
     SemiBin2 --help 2>&1 | grep -F "concatenate_fasta" >/dev/null; \
+    SemiBin2 --help 2>&1 | grep -F "install-skills" >/dev/null; \
     SemiBin2 single_easy_bin --help 2>&1 | grep -F -- "--environment" >/dev/null; \
     SemiBin2 multi_easy_bin --help 2>&1 | grep -F -- "--input-fasta" >/dev/null; \
     SemiBin2 concatenate_fasta --help 2>&1 | grep -F -- "--input-fasta" >/dev/null; \
+    SemiBin2 install-skills --help 2>&1 | grep -F -- "--skills-dir" >/dev/null; \
     SemiBin2 check_install --help 2>&1 | grep -F "check" >/dev/null; \
     SemiBin2 check_install 2>&1 | grep -F "SemiBin2" >/dev/null; \
     samtools --version 2>&1 | grep -F "samtools" >/dev/null; \
