@@ -1,9 +1,11 @@
 FROM mambaorg/micromamba:1.5.10-bookworm-slim
 
-ARG SEMIBIN_VERSION=2.4.0
-ARG SEMIBIN_COMMIT=219e067b926cfbd79c8d842c6e7ae1738b76f854
-ARG SEMIBIN_SDIST_SHA256=95eb3304c354079d37a25b35418d19ecce11b03dff64d5b784870493e6e104ac
-ARG SEMIBIN_SDIST_URL=https://files.pythonhosted.org/packages/61/d5/9206a948642dcb6686e9717d863d2e0260941664bb09a27e6144e0a39c42/semibin-2.4.0.tar.gz
+ARG SEMIBIN_VERSION=2.4.1
+ARG SEMIBIN_COMMIT=932d98b13761c3f64a928e1b74e41649d3c8bf14
+ARG SEMIBIN_CONDA_BUILD=pyhdfd78af_0
+ARG SEMIBIN_CONDA_SHA256=e6d95475806bd06ab05a129595e61b032c72e68446c378564ffe0373d39dd222
+ARG SEMIBIN_RELEASE_WHEEL_SHA256=f0f0cb6b3f1302d63b0e9b073fb69a4649c8bb37f8aa2e3d31cad6c06196c070
+ARG SEMIBIN_RELEASE_WHEEL_URL=https://github.com/BigDataBiology/SemiBin/releases/download/v2.4.1/semibin-2.4.1-py3-none-any.whl
 
 USER root
 
@@ -36,28 +38,32 @@ RUN set -eux; \
 
 USER mambauser
 
-RUN micromamba install -y -n base \
+RUN set -eux; \
+    micromamba install -y -n base \
       -c conda-forge \
       -c bioconda \
       pip \
       "python=3.11" \
-      "semibin=${SEMIBIN_VERSION}" \
+      "semibin=${SEMIBIN_VERSION}=${SEMIBIN_CONDA_BUILD}" \
       samtools \
       bedtools \
       hmmer \
       prodigal \
       ucx \
-      rdma-core \
- && micromamba clean -a -y \
- && rm -rf \
+      rdma-core; \
+    package_archive="$(find /opt/conda/pkgs -maxdepth 1 -type f -name "semibin-${SEMIBIN_VERSION}-${SEMIBIN_CONDA_BUILD}.conda" -print -quit)"; \
+    test -n "${package_archive}"; \
+    echo "${SEMIBIN_CONDA_SHA256}  ${package_archive}" | sha256sum -c -; \
+    micromamba clean -a -y; \
+    rm -rf \
       /opt/conda/include \
       /opt/conda/share/aclocal \
       /opt/conda/share/cmake \
       /opt/conda/share/doc \
       /opt/conda/share/info \
-      /opt/conda/share/man \
- && find /opt/conda -type f \( -name '*.a' -o -name '*.pyc' \) -delete \
- && find /opt/conda/lib/python3.11/site-packages -type d \
+      /opt/conda/share/man; \
+    find /opt/conda -type f \( -name '*.a' -o -name '*.pyc' \) -delete; \
+    find /opt/conda/lib/python3.11/site-packages -type d \
       \( -name '__pycache__' -o -name 'test' -o -name 'tests' \) \
       -prune -exec rm -rf '{}' '+'
 
@@ -73,26 +79,27 @@ RUN set -eux; \
       /opt/semibin2/share/doc/semibin2 \
       /opt/semibin2/share/licenses/semibin2 \
       /opt/semibin2/share/testdata; \
-    curl --http1.1 --retry 5 --retry-delay 5 --retry-all-errors -fsSL "${SEMIBIN_SDIST_URL}" -o /tmp/semibin.tar.gz; \
-    echo "${SEMIBIN_SDIST_SHA256}  /tmp/semibin.tar.gz" | sha256sum -c -; \
-    mkdir -p /tmp/semibin-src; \
-    tar -xzf /tmp/semibin.tar.gz -C /tmp/semibin-src --strip-components=1; \
-    cp /tmp/semibin-src/COPYING.MIT /opt/semibin2/share/licenses/semibin2/COPYING.MIT; \
+    curl --http1.1 --retry 5 --retry-delay 5 --retry-all-errors -fsSL "${SEMIBIN_RELEASE_WHEEL_URL}" -o /tmp/semibin.whl; \
+    echo "${SEMIBIN_RELEASE_WHEEL_SHA256}  /tmp/semibin.whl" | sha256sum -c -; \
+    mkdir -p /tmp/semibin-wheel; \
+    python -m zipfile -e /tmp/semibin.whl /tmp/semibin-wheel; \
+    cp "/tmp/semibin-wheel/semibin-${SEMIBIN_VERSION}.dist-info/licenses/COPYING.MIT" /opt/semibin2/share/licenses/semibin2/COPYING.MIT; \
     micromamba list -n base > /opt/semibin2/share/doc/semibin2/conda-packages.txt; \
     python -m pip freeze > /opt/semibin2/share/doc/semibin2/pip-freeze.txt; \
     { \
       printf "upstream_repo=https://github.com/BigDataBiology/SemiBin\n"; \
       printf "upstream_tag=v%s\n" "${SEMIBIN_VERSION}"; \
       printf "upstream_commit=%s\n" "${SEMIBIN_COMMIT}"; \
-      printf "runtime_source=bioconda::semibin=%s\n" "${SEMIBIN_VERSION}"; \
-      printf "source_archive=pypi::SemiBin==%s\n" "${SEMIBIN_VERSION}"; \
-      printf "source_sdist_sha256=%s\n" "${SEMIBIN_SDIST_SHA256}"; \
+      printf "runtime_source=bioconda::semibin=%s=%s\n" "${SEMIBIN_VERSION}" "${SEMIBIN_CONDA_BUILD}"; \
+      printf "runtime_package_sha256=%s\n" "${SEMIBIN_CONDA_SHA256}"; \
+      printf "release_artifact=github-release::semibin-%s-py3-none-any.whl\n" "${SEMIBIN_VERSION}"; \
+      printf "release_artifact_sha256=%s\n" "${SEMIBIN_RELEASE_WHEEL_SHA256}"; \
       printf "platform_note=This TAFFISH build is validated as linux/amd64 only.\n"; \
       printf "gpu_note=This image is a CPU runtime; CUDA/GPU SemiBin2 requires a custom GPU-capable PyTorch image.\n"; \
       printf "database_note=SemiBin2 built-in pretrained models are supplied by the packaged semibin distribution; external contigs and abundance/BAM inputs are user data.\n"; \
     } > /opt/semibin2/share/doc/semibin2/source.txt; \
     rm -rf /opt/conda/pkgs; \
-    rm -rf /tmp/semibin.tar.gz /tmp/semibin-src
+    rm -rf /tmp/semibin.whl /tmp/semibin-wheel
 
 RUN cat > /opt/semibin2/share/testdata/semibin2-smoke-concat.sh <<'EOF'
 #!/bin/sh
@@ -155,6 +162,43 @@ test ! -e .claude
 rm -rf "$tmp"
 EOF
 
+RUN cat > /opt/semibin2/share/testdata/semibin2-smoke-short-contigs.sh <<'EOF'
+#!/bin/sh
+set -eu
+
+tmp="${1:-/tmp/taf-semibin2-short-contigs-$$}"
+rm -rf "$tmp"
+mkdir -p "$tmp/output"
+cd "$tmp"
+
+short_contig="$(printf 'ACGT%.0s' $(seq 1 375))"
+cat > short-contigs.fa <<FASTA
+>contig_1
+${short_contig}
+>contig_2
+${short_contig}
+>contig_3
+${short_contig}
+>contig_4
+${short_contig}
+FASTA
+
+if SemiBin2 generate_sequence_features_single \
+    --input-fasta short-contigs.fa \
+    --output output \
+    --min-len 1000 \
+    --ml-threshold 4000 > run.log 2>&1; then
+  echo "expected short-contig validation to fail" >&2
+  exit 1
+fi
+
+grep -F 'none contain at least 4000 basepairs' run.log >/dev/null
+grep -F 'the longest is 1500' run.log >/dev/null
+test ! -e output/data.csv
+
+rm -rf "$tmp"
+EOF
+
 RUN set -eux; \
     ln -sf /opt/conda/bin/SemiBin2 /usr/local/bin/SemiBin2; \
     ln -sf /opt/conda/bin/python /usr/local/bin/python; \
@@ -165,7 +209,7 @@ RUN set -eux; \
     ln -sf /opt/conda/bin/hmmscan /usr/local/bin/hmmscan; \
     ln -sf /opt/conda/bin/hmmpress /usr/local/bin/hmmpress; \
     ln -sf /opt/conda/bin/prodigal /usr/local/bin/prodigal; \
-    chmod 0755 /opt/semibin2/share/testdata/semibin2-smoke-concat.sh /opt/semibin2/share/testdata/semibin2-smoke-install-skills.sh; \
+    chmod 0755 /opt/semibin2/share/testdata/semibin2-smoke-concat.sh /opt/semibin2/share/testdata/semibin2-smoke-install-skills.sh /opt/semibin2/share/testdata/semibin2-smoke-short-contigs.sh; \
     python -c "import importlib.metadata as md; import SemiBin, torch, numpy, pandas, sklearn, igraph, requests, safetensors, tqdm, numexpr; assert md.version('SemiBin') == '${SEMIBIN_VERSION}'; print(md.version('SemiBin'))" | grep -Fx "${SEMIBIN_VERSION}" >/dev/null; \
     python -c "from pathlib import Path; import SemiBin; expected = {'built_environment_model.pt', 'cat_gut_model.pt', 'chicken_caecum_model.pt', 'dog_gut_model.pt', 'global_model.pt', 'human_gut_model.pt', 'human_oral_model.pt', 'mouse_gut_model.pt', 'ocean_model.pt', 'pig_gut_model.pt', 'soil_model.pt', 'wastewater_model.pt'}; found = {path.name for path in (Path(next(iter(SemiBin.__path__))) / 'models').glob('*.pt')}; assert found == expected; print(len(found))" | grep -Fx "12" >/dev/null; \
     SemiBin2 --version 2>&1 | grep -Fx "${SEMIBIN_VERSION}" >/dev/null; \

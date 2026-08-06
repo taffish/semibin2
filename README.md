@@ -7,11 +7,11 @@ Package identity:
 - name: `semibin2`
 - command: `taf-semibin2`
 - kind: `tool`
-- version: `2.4.0-r1`
-- image: `ghcr.io/taffish/semibin2:2.4.0-r1`
-- upstream: `BigDataBiology/SemiBin` tag `v2.4.0`
-- upstream commit: `219e067b926cfbd79c8d842c6e7ae1738b76f854`
-- runtime version: `2.4.0`
+- version: `2.4.1-r1`
+- image: `ghcr.io/taffish/semibin2:2.4.1-r1`
+- upstream: `BigDataBiology/SemiBin` tag `v2.4.1`
+- upstream commit: `932d98b13761c3f64a928e1b74e41649d3c8bf14`
+- runtime version: `2.4.1`
 - TAFFISH app license: Apache-2.0
 - upstream license: MIT
 
@@ -22,24 +22,24 @@ genomes from contig assemblies plus abundance information. It uses
 self-supervised and semi-supervised learning with sequence composition,
 coverage/abundance, and built-in environment models.
 
-This TAFFISH image installs SemiBin `2.4.0` from Bioconda, records the resolved
-Conda package set, includes the upstream MIT license from the verified PyPI
-source distribution, and exposes the upstream `SemiBin2` command directly.
-Upstream SemiBin `2.4.0` ships only `SemiBin2`; the old `SemiBin1` command was
+This TAFFISH image installs the exact Bioconda
+`semibin=2.4.1=pyhdfd78af_0` package, verifies its SHA256, records the resolved
+Conda package set, includes the upstream MIT license from the checksum-verified
+official release wheel, and exposes the upstream `SemiBin2` command directly.
+Upstream SemiBin `2.4.1` ships only `SemiBin2`; the old `SemiBin1` command was
 removed upstream.
 
-## Upstream 2.4.0 Changes
+## Upstream 2.4.1 Changes
 
-SemiBin 2.4.0 raises the minimum supported Python version to 3.10; this image
-uses Python 3.11. The release adds `SemiBin2 install-skills`, which copies an
-upstream-provided agent skill to a project, user, or explicitly selected skills
-directory. It also adds an end-of-run binning summary with bin counts, binned
-and unbinned contig/base-pair fractions, and mean/median bin sizes.
+SemiBin `2.4.1` is a focused usability patch. `single_easy_bin` and
+`generate_sequence_features_single` now fail immediately with an actionable
+message when no input contig reaches the must-link threshold. The message reports
+the contig count, threshold, and longest contig length instead of allowing a
+later, obscure feature-generation failure.
 
-The release fixes the `--cannot-name` path in semi-supervised training, rejects
-the unsupported abundance-plus-environment combination cleanly, improves GTDB
-extraction errors, routes fatal messages through the run logger, and uses strict
-paired-array iteration to catch silent length mismatches.
+The Python 3.10 minimum, `install-skills`, end-of-run binning summary, built-in
+models, command surface, and dependency requirements introduced or retained in
+`2.4.0` remain unchanged. This image continues to use Python 3.11.
 
 ## Scope
 
@@ -80,8 +80,8 @@ This app does not:
 
 The file `/opt/semibin2/share/doc/semibin2/conda-packages.txt` records the
 exact Conda package set resolved during image build. `/opt/semibin2/share/doc/
-semibin2/source.txt` records the upstream tag, runtime source, PyPI source
-archive, SHA256, platform note, and CPU/GPU boundary.
+semibin2/source.txt` records the upstream tag/commit, exact Bioconda build and
+SHA256, official release wheel and SHA256, platform note, and CPU/GPU boundary.
 
 ## Usage
 
@@ -195,10 +195,10 @@ outputs depend on the selected subcommand, input mode, model choice, and whether
 bins are produced for the dataset.
 
 `SemiBin2 concatenate_fasta` writes `concatenated.fa.gz` in its output directory
-for SemiBin `2.4.0` and renames contigs as
+for SemiBin `2.4.1` and renames contigs as
 `<sample_name>:<original_contig_name>` by default.
 
-SemiBin 2.4.0 also logs a final binning summary when a binning command completes.
+SemiBin `2.4.1` retains the final binning summary added in `2.4.0` when a binning command completes.
 The exact summary and output files depend on the selected command and data.
 
 ## Resources, Databases, and Platform
@@ -215,7 +215,7 @@ when no reference is supplied. The wrapper never starts either path by itself.
 The optional FragGeneScan ORF path is also not bundled; use the built-in
 `fast-naive` default or packaged Prodigal instead.
 
-The image is declared as native `linux/amd64` only. Upstream's 2.4.0 Pixi
+The image is declared as native `linux/amd64` only. Upstream's `2.4.1` Pixi
 configuration tests `linux-64` and `osx-arm64`, not Linux arm64. `src/main.taf` requests
 `--platform linux/amd64` for Docker and Podman, so Apple Silicon and other arm64
 hosts can run it through container emulation when the backend supports that
@@ -228,9 +228,10 @@ options; use a custom image for that path.
 ## Boundaries
 
 The smoke test is intentionally small and offline. It validates Python package
-identity, core imports, the complete 2.4.0 built-in model set, SemiBin2
+identity, core imports, the complete `2.4.1` built-in model set, SemiBin2
 version/help, key subcommand help, upstream `check_install`, and a tiny
-`concatenate_fasta` workflow. It does not train a production neural model, run
+`concatenate_fasta` workflow. It also exercises the `2.4.1` short-contig early
+failure and checks its threshold and longest-contig diagnostics. It does not train a production neural model, run
 real metagenomic binning, benchmark bin quality, or validate biological
 accuracy on real datasets.
 
@@ -259,13 +260,15 @@ such as CheckM2/CheckM, GTDB-Tk, or other project-appropriate methods.
 
 The smoke test covers:
 
-- SemiBin `2.4.0` package identity and import of core Python dependencies
-- all 12 packaged 2.4.0 pretrained environment-model files
+- SemiBin `2.4.1` package identity and import of core Python dependencies
+- all 12 packaged `2.4.1` pretrained environment-model files
 - upstream `SemiBin2 --version`, top-level help, and major subcommand help
 - `SemiBin2 check_install` against the packaged CPU runtime
 - tiny synthetic `concatenate_fasta` execution and compressed output validation
 - real `install-skills --skills-dir` execution with bundled skill/reference
   file validation and no implicit `.claude` output
+- the `2.4.1` early short-contig failure with stable threshold and longest-length
+  diagnostics
 - presence of helper executables including `samtools`, `bedtools`, HMMER, and
   `prodigal`
 

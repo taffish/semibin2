@@ -1,4 +1,4 @@
-taf-semibin2 2.4.0-r1
+taf-semibin2 2.4.1-r1
 
 Purpose:
   Run SemiBin2 metagenomic binning with sequence composition, abundance and
@@ -42,13 +42,13 @@ Key outputs:
   --output directory   Logs, features, tables and bin FASTA files.
   concatenated.fa.gz   concatenate_fasta output with sample-prefixed contigs.
   output_bins/         Bin FASTA directory when binning produces bins.
-  SemiBinRun.log       Run log including the 2.4.0 end-of-run binning summary.
+  SemiBinRun.log       Run log including the end-of-run binning summary.
 
-Version 2.4.0:
+Version 2.4.1:
   Requires Python 3.10 or newer; this image uses Python 3.11.
-  Adds install-skills and a final binning summary, and fixes --cannot-name,
-  abundance-plus-environment validation, GTDB extraction errors, logging and
-  paired-array length checks.
+  single_easy_bin and generate_sequence_features_single now fail early with a
+  clear threshold and longest-contig message when no must-link pair is possible.
+  The install-skills command and final binning summary remain available.
 
 Agent skill installation:
   install-skills copies an upstream-provided skill for coding agents.
