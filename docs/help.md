@@ -1,89 +1,90 @@
-taf-semibin2 2.4.1-r1
+semibin2 2.5.0-r1
 
 Purpose:
-  Run SemiBin2 metagenomic binning with sequence composition, abundance and
-  bundled pretrained environment models.
+  Bin metagenomic contigs with CPU self-supervised learning or a built-in model.
 
 Usage:
+  taf-semibin2 SemiBin2 single_easy_bin -i contigs.fa -b reads.sorted.bam -o bins -p 8 --engine cpu
+  taf-semibin2 SemiBin2 single_easy_bin -i contigs.fa -b reads.sorted.bam -o bins --environment human_gut -p 8 --engine cpu
   taf-semibin2 -- --help
   taf-semibin2 -- --version
-  taf-semibin2 SemiBin2 single_easy_bin --environment human_gut -i contigs.fa -b sample.sorted.bam -o semibin2-out
-  taf-semibin2 SemiBin2 multi_easy_bin --environment global -i concatenated.fa.gz -b S1.bam S2.bam -o semibin2-multi
-  taf-semibin2 SemiBin2 concatenate_fasta --input-fasta S1.fa S2.fa --output concat
-  taf-semibin2 SemiBin2 install-skills --skills-dir .claude/skills
 
-Common commands:
-  taf-semibin2 SemiBin2 check_install
+Common tasks:
+  taf-semibin2 SemiBin2 concatenate_fasta -i sample1.fa sample2.fa -o concat
+  taf-semibin2 SemiBin2 multi_easy_bin -i concat/concatenated.fa.gz -b sample1.bam sample2.bam -o multi -p 8 --engine cpu
+  taf-semibin2 SemiBin2 generate_sequence_features_single -i contigs.fa -b reads.sorted.bam -o features -p 8
+  taf-semibin2 SemiBin2 train_self --data features/data.csv --data-split features/data_split.csv -o trained --engine cpu -p 8
+  taf-semibin2 SemiBin2 bin -i contigs.fa --data features/data.csv --model trained/model.pt -o bins --engine cpu -p 8
+
+Required inputs:
+  Contig FASTA plus coordinate-sorted BAM mapped to those exact contig IDs.
+  For multi-sample input, map reads to the concatenated reference first.
+  FASTA sample filenames must be unique; concatenate adds sample:contig IDs.
+  --abundance accepts strobealign-aemb split-contig tables for at least 5 samples.
+  Only load model files you trust; do not overwrite your reference or inputs.
+
+Common options and outputs:
+  -p threads; --engine cpu; --sequencing-type long_read for long-read assemblies.
+  --environment selects one of 12 packaged pretrained models; no download needed.
+  Default self-supervised mode trains from the supplied sample, without GTDB.
+  Outputs include data.csv, data_split.csv, model.pt (when trained), output_bins/.
+  Bins are candidate MAG FASTA files, not a scientific quality certification.
+  Use a new output directory: upstream may overwrite existing output files.
+
+Backend and platform:
+  Native linux/amd64 only; Docker/Podman select amd64 automatically on ARM hosts.
+  Docker:    TAFFISH_CONTAINER_BACKEND=docker taf-semibin2 SemiBin2 check_install
+  Podman:    TAFFISH_CONTAINER_BACKEND=podman taf-semibin2 SemiBin2 check_install
+  Apptainer: TAFFISH_CONTAINER_BACKEND=apptainer taf-semibin2 SemiBin2 check_install
+  Apptainer needs native x86_64 Linux. macOS/ARM: use Docker/Podman emulation.
+  GPU is unsupported in this CPU image on all three backends; use this CPU path
+  or a separate GPU PyTorch environment following upstream installation docs.
+
+Legacy GTDB preparation:
+  Needed only for deprecated semi-supervised taxonomy paths, not the defaults.
+  Obtain an administrator-reviewed fixed recipe; first pin is explained in README.
+  mkdir -p "$HOME/.local/share/taffish/databases/semibin2"
+  DBROOT="$HOME/.local/share/taffish/databases/semibin2"
+  chmod 755 "$DBROOT"
+  Docker:
+    TAFFISH_CONTAINER_BACKEND=docker TAFFISH_DOCKER_RUN_ARGS="--user $(id -u):$(id -g) -v '$DBROOT:/db-install'" taf-semibin2 semibin-db install --recipe recipe.json --db-root /db-install --rights-reviewed
+  Podman:
+    TAFFISH_CONTAINER_BACKEND=podman TAFFISH_PODMAN_RUN_ARGS="--userns keep-id -v '$DBROOT:/db-install'" taf-semibin2 semibin-db install --recipe recipe.json --db-root /db-install --rights-reviewed
+  Apptainer:
+    TAFFISH_CONTAINER_BACKEND=apptainer TAFFISH_APPTAINER_RUN_ARGS="--bind '$DBROOT:/db-install'" taf-semibin2 semibin-db install --recipe recipe.json --db-root /db-install --rights-reviewed
+  Preview with --dry-run; offline import: add --source-dir ARCHIVE_DIRECTORY.
+  Repeat to resume/verify. No --force. Legacy download_GTDB does not download.
+
+Read-only site database or custom-model reuse:
+  Set ROOT to your administrator's prepared database or model root.
+  ROOT=/usr/local/share/taffish/databases/semibin2
+  Docker:
+    export TAFFISH_CONTAINER_BACKEND=docker
+    export TAFFISH_DOCKER_RUN_ARGS="-v '$ROOT:/resources:ro'"
+  Podman:
+    export TAFFISH_CONTAINER_BACKEND=podman
+    export TAFFISH_PODMAN_RUN_ARGS="-v '$ROOT:/resources:ro'"
+  Apptainer:
+    export TAFFISH_CONTAINER_BACKEND=apptainer
+    export TAFFISH_APPTAINER_RUN_ARGS="--bind '$ROOT:/resources:ro'"
+  Then, with any of these backend selections:
+    taf-semibin2 semibin-db verify --db-root /resources --id gtdb--95
+    taf-semibin2 SemiBin2 generate_cannot_links -i contigs.fa -o links --reference-db /resources/gtdb--95 -p 8
+  For a custom-model root, instead pass --model /resources/PROJECT/model.pt to bin.
+  No automatic host discovery: select one explicit root/path. Unset that
+  backend's TAFFISH_*_RUN_ARGS to disable the optional mount. Missing GTDB fails
+  without downloading. Reserve >100 GB for a full GTDB setup plus working space.
+
+Immediate notes:
+  Select pretrained environments explicitly; do not combine --model with --environment.
+  For paths with spaces, preserve inner quotes: -i "'input/contigs 1.fa'".
+  Full-header preservation is a Python API option, not a concatenate_fasta CLI flag.
+
+More help:
   taf-semibin2 SemiBin2 single_easy_bin --help
-  taf-semibin2 SemiBin2 multi_easy_bin --help
-  taf-semibin2 SemiBin2 concatenate_fasta --help
-  taf-semibin2 SemiBin2 install-skills --help
-
-Packaged runtime:
-  SemiBin2    Main upstream CLI and bundled environment models.
-  python      Python 3.11 with SemiBin, CPU PyTorch, NumPy, pandas, sklearn,
-              igraph, safetensors and related dependencies.
-  samtools    BAM/CRAM helper.
-  bedtools    Coverage helper required by SemiBin workflows.
-  hmmsearch   HMMER marker-search command.
-  hmmscan     HMMER scan command.
-  hmmpress    HMMER profile preparation helper.
-  prodigal    Optional ORF finder for --orf-finder prodigal.
-
-Inputs:
-  -i, --input-fasta    Assembled contig FASTA or concatenated FASTA.
-  -b, --input-bam      Sorted alignment files prepared outside this app.
-  -a, --abundance      Precomputed abundance input where supported.
-  --environment        Bundled model such as human_gut, ocean, soil,
-                       wastewater or global.
-  --sequencing-type    short_read, long_read or the hybrid synonym.
-
-Key outputs:
-  --output directory   Logs, features, tables and bin FASTA files.
-  concatenated.fa.gz   concatenate_fasta output with sample-prefixed contigs.
-  output_bins/         Bin FASTA directory when binning produces bins.
-  SemiBinRun.log       Run log including the end-of-run binning summary.
-
-Version 2.4.1:
-  Requires Python 3.10 or newer; this image uses Python 3.11.
-  single_easy_bin and generate_sequence_features_single now fail early with a
-  clear threshold and longest-contig message when no must-link pair is possible.
-  The install-skills command and final binning summary remain available.
-
-Agent skill installation:
-  install-skills copies an upstream-provided skill for coding agents.
-  --skills-dir selects an explicit destination.
-  Without it, files go to ./.claude/skills; --user writes under
-  $HOME/.claude/skills. TAFFISH mounts these host paths. Nothing is installed
-  automatically.
-
-Platform and resources:
-  Native linux/amd64 only. Docker and Podman request linux/amd64 automatically;
-  arm64 hosts require backend emulation. This is a CPU-oriented image.
-  Memory, CPU time and disk use scale with assembly size and sample count.
-
-Boundaries:
-  This app does not assemble reads, map reads, sort/index BAM files, assess MAG
-  quality or bundle a production GTDB database.
-  Deprecated semi-supervised taxonomy paths require external MMseqs2 and GTDB;
-  the optional FragGeneScan path is not bundled. Current self-supervised paths,
-  built-in fast-naive ORF finding and packaged Prodigal are supported.
-  download_GTDB is an explicit deprecated network operation;
-  generate_cannot_links may also download GTDB when no reference is supplied.
-  Neither is tested or started automatically. GPU use requires a custom
-  CUDA/PyTorch image.
-
-Command mode:
-  Use "taf-semibin2 SemiBin2 SUBCOMMAND ...". A bare subcommand name is treated
-  as a container executable. Use "-- --help" for option-leading arguments to
-  the default SemiBin2 command.
-
-Detailed documentation:
-  https://semibin.readthedocs.io/en/latest/
-  https://github.com/BigDataBiology/SemiBin
+  taf-semibin2 semibin-db --help
+  https://github.com/taffish/semibin2
 
 Wrapper options:
-  taf-semibin2 --help       Show this TAFFISH help.
-  taf-semibin2 --version    Show the TAFFISH wrapper version.
-  taf-semibin2 --compile    Print generated shell code.
-  taf-semibin2 -- --help    Pass option-leading arguments to SemiBin2.
+  taf-semibin2 --help       Show this usage help.
+  taf-semibin2 --version    Show wrapper version.

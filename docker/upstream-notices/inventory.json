@@ -1,0 +1,22 @@
+{
+  "bedtools": {
+    "package_sha256": "d8b7aef31be37da761a87e1263ea00d62b67134b546f018067786aa6d3dccfac",
+    "files": [
+      {
+        "path": "bedtools-LICENSE",
+        "sha256": "0e44360fb7c5f08f49575e8de98606a10a9bc3e785e2c65cbef63e676190c86d",
+        "source": "https://raw.githubusercontent.com/arq5x/bedtools2/v2.31.1/LICENSE"
+      }
+    ]
+  },
+  "fraggenescan": {
+    "package_sha256": "64ad97d56cba1347249944e668884b469832625415055586738a2ee19784c0ed",
+    "files": [
+      {
+        "path": "fraggenescan-README",
+        "sha256": "fa30236b436c99437fe7066c2d675317971cdac7a7deeff22c67694cf94ae6ae",
+        "source": "https://downloads.sourceforge.net/project/fraggenescan/FragGeneScan1.32.tar.gz ; archive SHA256 54db8dab643f791aae7b05c310fe0d88ecb07db306211185c4c8524734f334c4 ; member FragGeneScan1.32/README"
+      }
+    ]
+  }
+}
