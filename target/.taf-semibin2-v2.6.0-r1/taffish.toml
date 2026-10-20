@@ -1,0 +1,50 @@
+[package]
+name = "semibin2"
+kind = "tool"
+version = "2.6.0"
+release = 1
+license = "Apache-2.0"
+main = "src/main.taf"
+
+[repository]
+url = "https://github.com/taffish/semibin2"
+
+[command]
+name = "taf-semibin2"
+
+[runtime]
+pipe = true
+command_mode = true
+
+[container]
+image = "ghcr.io/taffish/semibin2:2.6.0-r1"
+dockerfile = "docker/Dockerfile"
+build_platforms = "linux/amd64"
+
+[meta]
+domain = "bio"
+categories = ["metagenomics", "binning", "MAG", "assembly", "deep-learning"]
+keywords = ["SemiBin", "SemiBin2", "metagenomic-binning", "MAG", "binning", "PyTorch", "abundance", "contigs", "self-supervised-learning"]
+description = "Semi-supervised and self-supervised metagenomic binning with SemiBin2."
+
+[upstream]
+name = "SemiBin"
+type = "github"
+repo = "BigDataBiology/SemiBin"
+homepage = "https://semibin.readthedocs.io/"
+manual = "https://semibin.readthedocs.io/en/latest/"
+release_url = "https://github.com/BigDataBiology/SemiBin/releases/tag/v2.6.0"
+downloads = "bioconda::semibin=2.6.0=pyhdfd78af_0; https://github.com/BigDataBiology/SemiBin/releases/download/v2.6.0/semibin-2.6.0-py3-none-any.whl"
+version = "2.6.0"
+commit = "851bbb2ee444b1df2d49f56c794ba731fda69327"
+license = "MIT"
+citation = "Pan et al. 2022, SemiBin: metagenomic binning through contrastive learning; Pan et al. 2023, SemiBin2: self-supervised contrastive learning leads to better MAGs"
+doi = "10.1038/s41467-022-29843-y; 10.1093/bioinformatics/btad209"
+watch = "tags"
+strip_prefix = "v"
+
+[smoke]
+backend = "docker"
+timeout = 240
+exist = ["SemiBin2", "python", "python3", "samtools", "bedtools", "hmmsearch", "hmmscan", "hmmpress", "prodigal", "mmseqs", "run_FragGeneScan.pl", "FragGeneScan", "semibin-db", "curl", "sh", "grep", "gzip", "register-python-argcomplete", "shtab"]
+test = [ "python /opt/semibin2/share/testdata/semibin-smoke.py core", "python /opt/semibin2/share/testdata/semibin-smoke.py models", "python /opt/semibin2/share/testdata/semibin-smoke.py features", "python /opt/semibin2/share/testdata/semibin-smoke.py skills", "python /opt/semibin2/share/testdata/semibin-smoke.py orfs", "python /opt/semibin2/share/testdata/semibin-smoke.py completion", "python /opt/semibin2/share/testdata/semibin-resource-smoke.py resources", "python /opt/semibin2/share/testdata/conda-licenses.py verify", "python /opt/semibin2/share/testdata/test-conda-licenses.py", "python /opt/semibin2/share/testdata/test-resource-runtime.py" ]

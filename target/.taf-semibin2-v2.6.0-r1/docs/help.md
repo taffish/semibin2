@@ -1,4 +1,4 @@
-semibin2 2.5.0-r1
+semibin2 2.6.0-r1
 
 Purpose:
   Bin metagenomic contigs with CPU self-supervised learning or a built-in model.
@@ -28,7 +28,6 @@ Common options and outputs:
   --environment selects one of 12 packaged pretrained models; no download needed.
   Default self-supervised mode trains from the supplied sample, without GTDB.
   Outputs include data.csv, data_split.csv, model.pt (when trained), output_bins/.
-  Bins are candidate MAG FASTA files, not a scientific quality certification.
   Use a new output directory: upstream may overwrite existing output files.
 
 Backend and platform:
@@ -42,22 +41,23 @@ Backend and platform:
 
 Legacy GTDB preparation:
   Needed only for deprecated semi-supervised taxonomy paths, not the defaults.
-  Obtain an administrator-reviewed fixed recipe; first pin is explained in README.
+  --gtdb-v95 selects the fixed official 24 GB archive; terms: CC-BY-4.0, MD5 only.
   mkdir -p "$HOME/.local/share/taffish/databases/semibin2"
   DBROOT="$HOME/.local/share/taffish/databases/semibin2"
   chmod 755 "$DBROOT"
+  export TAFFISH_SEMIBIN_DB_AUTO_MOUNT=0
   Docker:
-    TAFFISH_CONTAINER_BACKEND=docker TAFFISH_DOCKER_RUN_ARGS="--user $(id -u):$(id -g) -v '$DBROOT:/db-install'" taf-semibin2 semibin-db install --recipe recipe.json --db-root /db-install --rights-reviewed
+    TAFFISH_CONTAINER_BACKEND=docker TAFFISH_DOCKER_RUN_ARGS="--user $(id -u):$(id -g) -v '$DBROOT:/db-install'" taf-semibin2 semibin-db install --gtdb-v95 --db-root /db-install --rights-reviewed
   Podman:
-    TAFFISH_CONTAINER_BACKEND=podman TAFFISH_PODMAN_RUN_ARGS="--userns keep-id -v '$DBROOT:/db-install'" taf-semibin2 semibin-db install --recipe recipe.json --db-root /db-install --rights-reviewed
+    TAFFISH_CONTAINER_BACKEND=podman TAFFISH_PODMAN_RUN_ARGS="--userns keep-id -v '$DBROOT:/db-install'" taf-semibin2 semibin-db install --gtdb-v95 --db-root /db-install --rights-reviewed
   Apptainer:
-    TAFFISH_CONTAINER_BACKEND=apptainer TAFFISH_APPTAINER_RUN_ARGS="--bind '$DBROOT:/db-install'" taf-semibin2 semibin-db install --recipe recipe.json --db-root /db-install --rights-reviewed
-  Preview with --dry-run; offline import: add --source-dir ARCHIVE_DIRECTORY.
-  Repeat to resume/verify. No --force. Legacy download_GTDB does not download.
+    TAFFISH_CONTAINER_BACKEND=apptainer TAFFISH_APPTAINER_RUN_ARGS="--bind '$DBROOT:/db-install'" taf-semibin2 semibin-db install --gtdb-v95 --db-root /db-install --rights-reviewed
+  Preview: --dry-run; offline: --source-dir DIR; custom: --recipe recipe.json.
+  Repeat to resume/verify after Ctrl-C/TERM; then unset TAFFISH_SEMIBIN_DB_AUTO_MOUNT.
 
 Read-only site database or custom-model reuse:
   Set ROOT to your administrator's prepared database or model root.
-  ROOT=/usr/local/share/taffish/databases/semibin2
+  export TAFFISH_SEMIBIN_DB_AUTO_MOUNT=0; ROOT=/usr/local/share/taffish/databases/semibin2
   Docker:
     export TAFFISH_CONTAINER_BACKEND=docker
     export TAFFISH_DOCKER_RUN_ARGS="-v '$ROOT:/resources:ro'"
@@ -71,14 +71,14 @@ Read-only site database or custom-model reuse:
     taf-semibin2 semibin-db verify --db-root /resources --id gtdb--95
     taf-semibin2 SemiBin2 generate_cannot_links -i contigs.fa -o links --reference-db /resources/gtdb--95 -p 8
   For a custom-model root, instead pass --model /resources/PROJECT/model.pt to bin.
-  No automatic host discovery: select one explicit root/path. Unset that
-  backend's TAFFISH_*_RUN_ARGS to disable the optional mount. Missing GTDB fails
-  without downloading. Reserve >100 GB for a full GTDB setup plus working space.
+  Auto root: TAFFISH_SEMIBIN_DB_PATH > personal path > /usr/local/share > /opt/taffish.
+  Auto members appear under /resources/semibin2; select the member explicitly.
+  TAFFISH_SEMIBIN_DB_AUTO_MOUNT=0 disables discovery; manual binds remain usable.
+  Invalid roots fail closed. Full GTDB needs >100 GB plus archive/workspace.
 
 Immediate notes:
   Select pretrained environments explicitly; do not combine --model with --environment.
   For paths with spaces, preserve inner quotes: -i "'input/contigs 1.fa'".
-  Full-header preservation is a Python API option, not a concatenate_fasta CLI flag.
 
 More help:
   taf-semibin2 SemiBin2 single_easy_bin --help

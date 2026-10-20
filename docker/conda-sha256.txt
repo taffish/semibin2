@@ -134,4 +134,6 @@ fc9ca7348a4f25fed2079f2153ecdcf5f9cf2a0bc36c4172420ca09e1849df7b  /opt/conda/pkg
 1715246b19c9f85ee022933b4845f2fc14ac9184981b7b7d9b728bec8e9588da  /opt/conda/pkgs/requests-2.34.2-pyhcf101f3_0.conda
 85d39d440e6893377b5c4d34740b005766b3610c87263322e1d8858c1622b147  /opt/conda/pkgs/pytorch-2.13.0-cpu_mkl_py311_h249fa5d_102.conda
 b98f96796acb13d0d756f68e482db63f2c341371319b2eb2cf09d742c5ab89b5  /opt/conda/pkgs/pytorch-cpu-2.13.0-cpu_mkl_hd61e0f4_102.conda
-4a844e4acb739f2cc7ffa1a1b66122fe49569cda4ed7b824b810c263e476e24a  /opt/conda/pkgs/semibin-2.5.0-pyhdfd78af_0.conda
+fd66ea04d54db8bbee2db28bcc73fcc1e57c7bf3c79e9af2b0f512a244a14443  /opt/conda/pkgs/semibin-2.6.0-pyhdfd78af_0.conda
+7a0e771e709b1620a914ba8a9590433c4a9fd84779d137216ac29ca50e959a1f  /opt/conda/pkgs/argcomplete-3.7.2-pyhcf101f3_0.conda
+7a814d642947af79ce4d23c7447f80f54e2569f4e27af03aefdbc732bbe09e69  /opt/conda/pkgs/shtab-1.12.1-pyh5ded981_0.conda

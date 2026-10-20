@@ -1,0 +1,52 @@
+<shell>
+# Optional prepared-root exposure only; never parse scientific argv or select a member.
+taf_semibin_mount() {
+    taf_semibin_backend="$1"
+    taf_semibin_auto="${TAFFISH_SEMIBIN_DB_AUTO_MOUNT:-1}"
+    case "$taf_semibin_auto" in
+        0|false|FALSE|no|NO|off|OFF) printf -- '--env=TAFFISH_ENV=TAFFISH'; return ;;
+        1|true|TRUE|yes|YES|on|ON) ;;
+        *) printf >&2 'taf-semibin2: invalid TAFFISH_SEMIBIN_DB_AUTO_MOUNT; use 0 or 1\n'; printf -- '--taf-semibin-invalid-resource'; return ;;
+    esac
+    taf_semibin_root="${TAFFISH_SEMIBIN_DB_PATH:-}"
+    if test "${TAFFISH_SEMIBIN_DB_PATH+x}" != x; then
+        for taf_semibin_path in "${HOME}/.local/share/taffish/databases/semibin2" "/usr/local/share/taffish/databases/semibin2" "/opt/taffish/databases/semibin2"; do
+            if test -e "$taf_semibin_path" || test -L "$taf_semibin_path"; then taf_semibin_root="$taf_semibin_path"; break; fi
+        done
+        if test -z "$taf_semibin_root"; then printf -- '--env=TAFFISH_ENV=TAFFISH'; return; fi
+    fi
+    taf_semibin_ok=1
+    if ! test -d "$taf_semibin_root"; then taf_semibin_ok=0; else
+        taf_semibin_root="$(CDPATH= cd "$taf_semibin_root" && pwd -P)"
+        case "$taf_semibin_root" in *:*|*,*) taf_semibin_ok=0 ;; esac
+        taf_semibin_count=0
+        for taf_semibin_member in "$taf_semibin_root"/*; do
+            test -e "$taf_semibin_member" || test -L "$taf_semibin_member" || continue
+            taf_semibin_count=$((taf_semibin_count + 1))
+            if test -L "$taf_semibin_member" || ! test -d "$taf_semibin_member" ||
+               ! test -s "$taf_semibin_member/manifest.json" || ! test -s "$taf_semibin_member/READY" ||
+               ! test -f "$taf_semibin_member/GTDB" || ! test -f "$taf_semibin_member/GTDB.index" || ! test -f "$taf_semibin_member/GTDB.dbtype"; then
+                taf_semibin_ok=0; break
+            fi
+            for taf_semibin_file in manifest.json READY recipe.json RESOURCE_LICENSE.txt GTDB GTDB.index GTDB.dbtype; do
+                if test -L "$taf_semibin_member/$taf_semibin_file" || ! test -f "$taf_semibin_member/$taf_semibin_file"; then taf_semibin_ok=0; break; fi
+            done
+            grep -F 'taffish.semibin.db.v1' "$taf_semibin_member/manifest.json" >/dev/null || taf_semibin_ok=0
+            taf_semibin_hash="$(if command -v sha256sum >/dev/null 2>&1; then sha256sum "$taf_semibin_member/manifest.json"; else shasum -a 256 "$taf_semibin_member/manifest.json"; fi)"
+            taf_semibin_hash="${taf_semibin_hash%% *}"
+            if test "$taf_semibin_hash" != "$(cat "$taf_semibin_member/READY")"; then taf_semibin_ok=0; break; fi
+        done
+        test "$taf_semibin_count" -gt 0 || taf_semibin_ok=0
+    fi
+    if test "$taf_semibin_ok" != 1; then
+        printf >&2 'taf-semibin2: invalid/unprepared shared DB root: %s; verify with semibin-db, select TAFFISH_SEMIBIN_DB_PATH, or set TAFFISH_SEMIBIN_DB_AUTO_MOUNT=0 for setup/manual binds.\n' "$taf_semibin_root"
+        printf -- '--taf-semibin-invalid-resource'; return
+    fi
+    if test "$taf_semibin_backend" = apptainer; then
+        printf -- '--bind=%s:/resources/semibin2:ro' "$taf_semibin_root"
+    else
+        printf -- '--volume=%s:/resources/semibin2:ro' "$taf_semibin_root"
+    fi
+}
+<taf-app:container:ghcr.io/taffish/semibin2:2.6.0-r1$@[docker/podman: --platform linux/amd64 "$(taf_semibin_mount docker)"][apptainer: "$(taf_semibin_mount apptainer)"]>
+SemiBin2 ::*ARGV*::

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""许可归档的离线正反例，不替代宏基因组科学验收。"""
+"""Offline positive and negative tests for license archives; not a substitute for metagenomic scientific validation."""
 import importlib.util
 import hashlib
 import json

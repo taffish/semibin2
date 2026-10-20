@@ -1,7 +1,11 @@
+# Source drift: the digest pins image identity, not permanent registry retention. If pulling fails,
+# check official image availability and revalidate in a new release; never silently switch digests.
 FROM mambaorg/micromamba:1.5.10-bookworm-slim@sha256:e3797091302382ea841498bc93a7b0a50f7c1448333d5e946d2d1608d0c5f43d AS builder
 USER root
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV PATH=/opt/conda/bin:${PATH} PYTHONDONTWRITEBYTECODE=1
+# Source drift: explicit URLs/builds plus SHA256 pin the current dependency bytes, but Conda repositories may
+# remove packages. For 404s, check the lock and upstream retention; do not hide failures by dropping checks or using unpinned installs.
 COPY docker/conda-linux-64.lock /tmp/environment.lock
 COPY docker/conda-sha256.txt /tmp/conda-sha256.txt
 COPY docker/conda-licenses.py /tmp/conda-licenses.py
@@ -27,16 +31,19 @@ USER root
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive PATH=/opt/conda/bin:${PATH} \
     PYTHONDONTWRITEBYTECODE=1 TAFFISH_ENV=TAFFISH TAFFISH_NAME=semibin2 \
-    TAFFISH_VERSION=2.5.0 TAFFISH_RELEASE=1 OMP_NUM_THREADS=1
+    TAFFISH_VERSION=2.6.0 TAFFISH_RELEASE=1 OMP_NUM_THREADS=1
+# Source drift: bookworm APT indexes/dependencies change with the repository; resolution occurs at install time, not against a historical snapshot.
+# On failure, check the suite, indexes and package status before validating a fix in an immutable successor; long-term rebuildability is not guaranteed.
 RUN set -eux; apt-get -o Acquire::Retries=3 update; \
     apt-get -o Acquire::Retries=3 install -y --no-install-recommends curl libx11-6; \
     rm -rf /var/lib/apt/lists/*; mkdir -p /work
 COPY --from=builder /opt/conda /opt/conda
 COPY --from=builder /opt/semibin2 /opt/semibin2
-COPY docker/conda-licenses.py docker/test-conda-licenses.py docker/semibin-smoke.py docker/semibin-resource-smoke.py /opt/semibin2/share/testdata/
-COPY docker/semibin-db.py /usr/local/bin/semibin-db
+COPY --chmod=0644 docker/conda-licenses.py docker/test-conda-licenses.py docker/semibin-smoke.py docker/semibin-resource-smoke.py docker/test-resource-runtime.py /opt/semibin2/share/testdata/
+COPY --chmod=0755 docker/semibin-db.py /usr/local/bin/semibin-db
+COPY --chmod=0644 docker/semibin_runtime.py /usr/local/bin/semibin_runtime.py
 # Storage-only compatibility adaptation: no implicit legacy database download.
-COPY docker/gtdb-local.py /opt/conda/lib/python3.11/site-packages/SemiBin/gtdb.py
+COPY --chmod=0644 docker/gtdb-local.py /opt/conda/lib/python3.11/site-packages/SemiBin/gtdb.py
 RUN set -eux; chmod 755 /usr/local/bin/semibin-db; \
     python /opt/semibin2/share/testdata/conda-licenses.py verify; \
     python /opt/semibin2/share/testdata/test-conda-licenses.py; \

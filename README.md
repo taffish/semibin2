@@ -1,25 +1,30 @@
 # semibin2
 
-`semibin2` packages SemiBin 2.5.0 for TAFFISH.
+`semibin2` packages SemiBin 2.6.0 for TAFFISH.
 
-- command: `taf-semibin2`; kind: `tool`; package: `2.5.0-r1`
+- command: `taf-semibin2`; kind: `tool`; package: `2.6.0-r1`
 - packaging license: Apache-2.0; upstream software: MIT
 - upstream: https://github.com/BigDataBiology/SemiBin
-- immutable source: `v2.5.0`, commit `de1e77d8127d000f6898a27000d70feb1e94c2f0`
+- immutable source: `v2.6.0`, commit `851bbb2ee444b1df2d49f56c794ba731fda69327`
 
 ## What This App Packages
 
 A thin automatic-command wrapper around `SemiBin2`, CPU PyTorch and its
-runtime dependencies. The 2.5.0 change adds `keep_full_header=True` to the Python
-`SemiBin.utils.concatenate_fasta` API; it does **not** add a CLI flag.
-Normal CLI concatenation still emits sample-prefixed contig identifiers.
+runtime dependencies. Version 2.6.0 adds argcomplete/static shell completion,
+the `check-install` alias and earlier diagnostics for invalid inputs or missing
+external tools. Minimums are Python 3.11, pandas 3 and PyTorch 2.4. The existing
+Python full-header API remains available; CLI concatenation still prefixes IDs.
 
 Runtime comes from the exact Bioconda package
-`semibin=2.5.0=pyhdfd78af_0`, SHA256
-`4a844e4acb739f2cc7ffa1a1b66122fe49569cda4ed7b824b810c263e476e24a`.
+`semibin=2.6.0=pyhdfd78af_0`, SHA256
+`fd66ea04d54db8bbee2db28bcc73fcc1e57c7bf3c79e9af2b0f512a244a14443`.
 The official wheel has SHA256
-`1527d37db23d96f00affe62fa1c72de0b1f39e195ab4c57f64b4f6327eb377bc`.
+`fd6667d9df602da1acf379bb067a4a78d035d18189ccea470d842b7d2677d342`
+(official release digest; the runtime uses the separately verified Conda archive).
 Every Conda dependency is fixed by URL/build and independently SHA256-verified.
+Fixed digests/checksums detect changed bytes, not permanent retention: registry or
+Conda artifacts may disappear, and Debian APT indexes can change. Dockerfile
+comments identify these sources and the successor-release repair boundary.
 
 ## Scope
 
@@ -42,7 +47,7 @@ ATLAS and Galaxy are separate workflow/service integrations, not a hidden local 
 ## Container Contents
 
 `SemiBin2`, Python 3.11, CPU PyTorch, NumPy, pandas, scikit-learn, python-igraph,
-samtools, bedtools, HMMER, Prodigal, FragGeneScan, MMseqs2 and `semibin-db`.
+samtools, bedtools, HMMER, Prodigal, FragGeneScan, MMseqs2, argcomplete, shtab and `semibin-db`.
 The digest-pinned micromamba base is used for a two-stage build. Build caches,
 headers, static libraries, sysroots, bytecode and non-runtime tests/docs are removed
 only after original Conda notices are archived. Exact package inventories, original
@@ -60,13 +65,13 @@ exact package version and check its wrapper identity:
 
 ```sh
 taf update
-taf install semibin2 2.5.0-r1
-taf-semibin2-v2.5.0-r1 --version
+taf install semibin2 2.6.0-r1
+taf-semibin2-v2.6.0-r1 --version
 ```
 
-The versioned command identifies package `2.5.0-r1`. The unversioned
+The versioned command identifies package `2.6.0-r1`. The unversioned
 `taf-semibin2` alias follows the latest installed local version; use
-`taf-semibin2-v2.5.0-r1` when this exact package is required.
+`taf-semibin2-v2.6.0-r1` when this exact package is required.
 
 ## Usage and Command Mode
 
@@ -141,11 +146,19 @@ https://doi.org/10.5281/zenodo.4751564 (Shaojun Pan, 2021).
 The record's registered terms are CC-BY-4.0; retain attribution/source and consider
 the rights of any additional genomes you redistribute. No credentials are required.
 
-Upstream supplies MD5 `4a70301c54104e87d5615e3f2383c8b5` for
-`GTDB_v95.tar.gz`, but no independently published SHA256 inventory.
-The first administrator acquisition must therefore be reviewed and pinned;
-subsequent installs are mechanical, SHA256/size-verified and resumable.
-This does not claim that a locally calculated SHA256 is upstream-authenticated.
+The fixed Zenodo record supplies MD5 `4a70301c54104e87d5615e3f2383c8b5` and
+24,044,444,399 compressed bytes for `GTDB_v95.tar.gz`, but no independent SHA256.
+Use `semibin-db install --gtdb-v95 --db-root /db-install --rights-reviewed`
+with the actual writable backend bind shown in help. This explicitly downloads
+only v95, verifies the official size/MD5, validates flat regular GTDB tar members,
+then records archive/member SHA256 and attribution in the installed inventory.
+MD5 is a weaker upstream integrity check, not strong cryptographic provenance;
+the newly calculated SHA256 is local provenance, not upstream authentication.
+`--dry-run` shows the fixed identity, exact size, checksum and license without writes.
+
+For a custom or independently reviewed archive, the stricter SHA256 recipe path
+remains available. Example first acquisition/pinning (optional, not required by
+the built-in v95 selector):
 
 ```sh
 # Explicit large first acquisition, in a new writable preparation directory.
@@ -172,7 +185,7 @@ Site directory ownership is never changed by an ordinary user's invocation.
 
 `semibin-db install --recipe recipe.json --db-root /db-install --rights-reviewed`
 uses an installer-owned root (not group/world writable), private 0700 download
-cache, an exclusive lock, resumable HTTPS, exact size/SHA256, staging, full member
+cache, an exclusive lock, resumable HTTPS, exact recipe size/checksum, staging, full member
 inventory, READY hash and no-clobber promotion. Installed members are 0755/0644.
 Repeat the same command to resume or verify an already complete installation.
 Use `--source-dir DIR` for an offline archive import, `--dry-run` for a preview,
@@ -180,6 +193,16 @@ and `verify` / `list` for full read-only inventory checks.
 A corrupt member is never overwritten; after confirming no installer is running,
 an administrator may quarantine that exact member and rerun. Do not remove active
 locks. Failed download partials remain private for inspection/retry.
+INT/TERM/HUP return 130/143/129, reap owned subprocesses before releasing the lock,
+and remove only this attempt's unpublished staging directory. A completed promotion
+is retained and verified on retry. Offline imports resume after checking the saved
+prefix, including an empty partial left before the first byte was copied. Empty
+regular partials resume without deleting old resources; corrupt/oversized partials
+and symlinks remain rejected. SIGKILL/power loss may leave a lock/stage: verify no
+installer is running,
+preserve the exact failed attempt for diagnosis, and recover deliberately; never
+delete an entire database root. Existing members, including broken symlinks, fail
+closed rather than being overwritten. There is no destructive `--force` mode.
 
 Allow more than 100 GB for the full upstream resource plus compressed archive and
 analysis workspace. `--reserve-gb` adds a free-space reserve (default 10 GiB);
@@ -189,19 +212,33 @@ recorded by the reviewed recipe, not a guessed fixed number here.
 
 ### Selection, overrides and write map
 
-We deliberately use **explicit parameters plus a shared directory**, preserving
-the thin wrapper and avoiding argv parsing or silent cross-root scientific selection.
-There is no automatic host discovery/mount. The optional host root is overridden by
-the user's backend bind, and `--reference-db DIRECTORY` selects the member.
+The wrapper exposes a prepared database root read-only at `/resources/semibin2`.
+Priority is `TAFFISH_SEMIBIN_DB_PATH`, then personal
+`$HOME/.local/share/taffish/databases/semibin2`, then `/usr/local/share`, then
+`/opt/taffish/databases/semibin2`. It resolves a root symlink to its physical path;
+an invalid explicit root, broken high-priority link, empty or incomplete prepared
+root fails closed, without silently selecting a lower-priority root. Colons/commas
+in physical mount paths are rejected; paths with spaces are supported.
+Preflight checks each visible member's required files and READY/manifest hash;
+use `semibin-db verify` for full data SHA256 verification after transfer or suspected
+corruption. Auto-mount is not a substitute for that potentially lengthy full scan.
+No upstream argv is parsed, and no GTDB member is scientifically selected: pass
+`--reference-db /resources/semibin2/gtdb--95` or another explicit prepared member.
+Set `TAFFISH_SEMIBIN_DB_AUTO_MOUNT=0` for setup into an empty standard root, to
+disable discovery, or to use the manual three-backend binds shown in help.
+After setup, unset the switch to re-enable discovery. Absence of any candidate
+means no optional mount; it does not mark GTDB as available.
 For Python/library integrations, `TAFFISH_SEMIBIN_DB_DIR` is the fallback container
 directory when no explicit argument is supplied; it does not create a host bind.
-To disable sharing, unset the backend `TAFFISH_*_RUN_ARGS` and use project paths.
+To disable manual sharing as well, unset the backend `TAFFISH_*_RUN_ARGS`.
 Missing members fail closed; no normal analysis path uses ephemeral downloads.
 
 Temporary writes use unique `/tmp` directories. Analysis/training/skill outputs
 must be user-selected writable work paths. Database setup uses only an actual
 writable bind; shared DB/model reads require no root, network or write permission.
-No Docker VOLUME or fake mount marker is used. Complete production GTDB download
+No Docker VOLUME or fake mount marker is used. Project-trained models remain
+explicitly selected user inputs, not part of automatic GTDB discovery.
+Complete production GTDB download
 and biological taxonomy validation are not part of this tiny engineering suite.
 
 ## Troubleshooting and Boundaries
@@ -211,34 +248,59 @@ and biological taxonomy validation are not part of this tiny engineering suite.
 - Small/short contigs may yield no bins; inspect length thresholds and upstream logs.
 - GPU unavailable is expected in this CPU release, not cured by `--nv`/`--gpus`.
 - Advanced `install-skills` writes only where requested; it does not install a GUI.
-- The added full-header API option preserves the upstream implementation unchanged.
+- Completion generators target the upstream `SemiBin2` command, not the two-word
+  `taf-semibin2 SemiBin2` wrapper interface. They do not modify host shell startup.
+  Generate a script explicitly with
+  `taf-semibin2 shtab -u --shell=bash --prog=SemiBin2 SemiBin.main.semibin_arg_parser > SemiBin2.bash`.
+  Use it only in a shell exposing the actual upstream command; regenerate on upgrades.
 
 ## Testing
 
-The 2.5.0-r1 candidate passed native amd64 engineering validation on xjp;
-this is a prepared candidate, not a claim of publication.
+The 2.6.0-r1 candidate passed native amd64 engineering validation on xjp with
+Docker 26.1.5, rootless Podman 5.4.2 and Apptainer 1.5.3. Publication is a separate
+maintainer action; local validation does not imply a published GitHub/GHCR release.
 Smoke covers package identity, all main helps, 12-model real CPU inference, model
 save/load, FASTA concatenation and full-header API, real BAM feature extraction,
 one-epoch training, explicit skill installation, local GTDB policy, synthetic
 MMseqs database preparation/reuse and negative resource/notice checks.
-All 125 exact manifest checks passed independently in fresh offline Docker/Podman
-normal/read-only containers and an actual same-OCI read-only SIF. All 93 real-wrapper
-checks passed, including arguments with spaces, ordinary UID, actual writable/readonly
-binds, custom-model reads and write denial. An administrator installed one root-owned
-synthetic database; 20 permission/reuse checks and 16 exact cleanup checks passed.
-Six HTTPS-resume/failure-log checks passed across three backends. Three additional
-wrapper tests each ran trained and built-in model binning, including reclustering/HMMER,
-and checked all four synthetic input contigs were preserved in outputs.
-No complete production GTDB or biological MAG quality validation is claimed.
-No backend exception is needed; native ARM and ARM-host emulation are not separately
-validated for this candidate. The native-platform and supported-backend axes both pass.
+All 150 exact commands passed: combined-exist, 19 individual exist probes and
+10 tests, independently in Docker/Podman normal and read-only roots and an actual
+same-OCI read-only SIF. The three real wrappers passed 96 main-path checks,
+48 prepared-root discovery/override/disable checks, trained/bundled-model synthetic
+binning, and trusted legacy-model conversion. A private root-owned synthetic
+database was installed once, then read without write permission by ordinary users
+through all three backends; another numeric UID also read the models/database.
+This is a tested sharing mechanism, not an installation into real system directories.
+Site path precedence has a separate private-prefix contract test.
 
-Final image: 2,250,626,075 bytes (about 2.25 GB), dominated by CPU numerical libraries
-and MMseqs runtime variants. Package download caches, headers/sysroots and static
-libraries are excluded from the final copied runtime. Small upstream Easel reference
-material remains with its packaged helper utilities; no required model/training data
-is removed. The Conda notice inventory covers 137 packages and 300 original/supplementary
-files, verified before pruning and again in each backend.
+Resource tests cover actual writable/read-only binds, HTTPS partial resume,
+original failure exit/log-tail visibility, and 54 externally signalled lock/stage/
+promotion/offline-copy windows with recovery and idempotence. These include empty
+and nonempty partials on all three backends. Each case first installs a valid old
+member and checks its complete file hashes after interruption and retry; the 216
+receipts include old-member installation, interruption, recovery and idempotence.
+Fresh offline smoke also checks missing/empty/prefix/complete partials and rejection
+of corrupt, oversized or symlink partials. Nine further real-curl interruption
+cases cover INT/TERM/HUP across the three wrappers. Old resources and completed
+promotions remain intact. Temporary children, locks and unpublished stages are
+checked after exit. The image explicitly fixes copied runtime file permissions,
+so an unusually restrictive source-context umask does not require root at runtime.
+No complete production GTDB or biological MAG quality validation is claimed.
+Native ARM is not declared. ARM-host emulation is not separately validated for this
+candidate. Current backend/platform receipts, rather than the previous release's
+results, determine readiness. The canonical Action is byte-for-byte unchanged.
+
+The final image is 2,251,016,624 bytes (about 2.25 GB / 2.10 GiB); `/opt/conda`
+is about 2.1 GiB and `/opt/semibin2` about 6.7 MiB. CPU numerical libraries and
+MMseqs runtime variants dominate. Download caches, headers/sysroots and static
+libraries are excluded from the final copied runtime. Approximately 21 MiB of
+upstream offline manual pages and 18 MiB of Easel reference material are retained
+as user reference alongside the packaged helper utilities; these are not download
+caches, and their retention is intentional. No required model/training data
+is removed. The current lock has 139 packages; notices are archived before pruning
+and their 305 notice files passed verification in each backend. The existing
+two-stage pruning is retained; no required model or optional ORF executable was
+removed merely to reduce size.
 
 ## License and Citation
 

@@ -135,4 +135,6 @@ https://conda.anaconda.org/conda-forge/noarch/sympy-1.14.0-pyh2585a3b_106.conda#
 https://conda.anaconda.org/conda-forge/noarch/requests-2.34.2-pyhcf101f3_0.conda#4a85203c1d80c1059086ae860836ffb9
 https://conda.anaconda.org/conda-forge/linux-64/pytorch-2.13.0-cpu_mkl_py311_h249fa5d_102.conda#984900ed34b9ac4a39216a107b3ee802
 https://conda.anaconda.org/conda-forge/linux-64/pytorch-cpu-2.13.0-cpu_mkl_hd61e0f4_102.conda#9aacadbef9c3952fbe20e1193e4541f3
-https://conda.anaconda.org/bioconda/noarch/semibin-2.5.0-pyhdfd78af_0.conda#863da613713340486416fd5cc712d939
+https://conda.anaconda.org/bioconda/noarch/semibin-2.6.0-pyhdfd78af_0.conda#cfa5ad2db69c436df5cb1de550739399
+https://conda.anaconda.org/conda-forge/noarch/argcomplete-3.7.2-pyhcf101f3_0.conda#5185c9f9742daeffae5daae93c802bf7
+https://conda.anaconda.org/conda-forge/noarch/shtab-1.12.1-pyh5ded981_0.conda#48e1fa65b685f6f4dc845316898348ce

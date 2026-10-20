@@ -1,5 +1,5 @@
 #!/opt/conda/bin/python
-"""离线工程 smoke：小型合成数据，不代表 MAG 科学正确性验收。"""
+"""Offline packaging smoke tests using small synthetic data; not a scientific validation of MAG results."""
 import gzip
 import importlib.metadata as md
 import logging
@@ -19,10 +19,10 @@ def run(*argv, fail=False, marker=None):
 
 
 def core():
-    import SemiBin, numpy, pandas, sklearn, igraph, requests, safetensors, tqdm, numexpr, torch
-    assert md.version('SemiBin') == '2.5.0'
+    import SemiBin, numpy, pandas, sklearn, igraph, requests, safetensors, tqdm, numexpr, torch, argcomplete, shtab
+    assert md.version('SemiBin') == '2.6.0'
     assert torch.version.cuda is None, 'This release is explicitly CPU-only'
-    assert run('SemiBin2', '--version').strip() == '2.5.0'
+    assert run('SemiBin2', '--version').strip() == '2.6.0'
     for sub in ('single_easy_bin', 'multi_easy_bin', 'train_self', 'train_semi', 'bin',
                 'generate_cannot_links', 'concatenate_fasta', 'install-skills'):
         assert sub in run('SemiBin2', '--help')
@@ -65,6 +65,17 @@ def models():
     other = model_load('custom.pt', torch.device('cpu')).eval()
     with torch.no_grad():
         assert torch.equal(y, other.embedding(torch.full((3, other.encoder1[0].in_features), 0.01)))
+
+
+def completion():
+    from SemiBin.main import semibin_arg_parser
+    parser = semibin_arg_parser()
+    assert parser.parse_args(['check_install']).cmd == 'check_install'
+    for shell in ('bash', 'zsh', 'fish'):
+        output = run('shtab', '-u', '--shell='+shell, '--prog=SemiBin2',
+                     'SemiBin.main.semibin_arg_parser')
+        assert 'single_easy_bin' in output and 'SemiBin2' in output
+    assert 'SemiBin2' in run('register-python-argcomplete', 'SemiBin2')
 
 
 def features():
@@ -119,5 +130,6 @@ if __name__ == '__main__':
     mode = sys.argv[1]
     with tempfile.TemporaryDirectory(prefix='taf-semibin-smoke-') as tmp:
         os.chdir(tmp)
-        {'core': core, 'models': models, 'features': features, 'skills': skills, 'orfs': orfs}[mode]()
+        {'core': core, 'models': models, 'features': features, 'skills': skills,
+         'orfs': orfs, 'completion': completion}[mode]()
     print('PASS semibin-smoke ' + mode)
