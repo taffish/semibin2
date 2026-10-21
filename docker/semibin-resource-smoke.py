@@ -99,7 +99,19 @@ def resources():
     helper.install(md5root, synthetic_catalog, source, 0)
     verify = ['semibin-db', 'verify', '--db-root', str(root), '--id', 'synthetic--1']
     record = json.loads(run('verify', verify))
+    assert record['app_release'] == '2.6.0-r2'
     assert len(record['files']) >= 5 and not list(root.glob('*.stage-*'))
+    # Old prepared members remain readable/idempotent; verification must not rewrite provenance.
+    current_manifest = (member / 'manifest.json').read_bytes()
+    legacy_record = dict(record, app_release='2.6.0-r1')
+    (member / 'manifest.json').write_bytes(helper.canonical(legacy_record) + b'\n')
+    (member / 'READY').write_text(helper.sha(member / 'manifest.json') + '\n')
+    legacy_manifest, legacy_ready = (member / 'manifest.json').read_bytes(), (member / 'READY').read_bytes()
+    assert json.loads(run('legacy-verify', verify))['app_release'] == '2.6.0-r1'
+    run('legacy-idempotent', install, marker='already complete:')
+    assert (member / 'manifest.json').read_bytes() == legacy_manifest and (member / 'READY').read_bytes() == legacy_ready
+    (member / 'manifest.json').write_bytes(current_manifest)
+    (member / 'READY').write_bytes(identity)
     assert len(json.loads(run('list', ['semibin-db', 'list', '--db-root', str(root)]))) == 1
     run('installed-read', ['mmseqs', 'convert2fasta', str(member / 'GTDB'), 'shared.fa'])
     assert '>synthetic_protein' in Path('shared.fa').read_text()

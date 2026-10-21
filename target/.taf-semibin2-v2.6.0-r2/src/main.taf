@@ -48,5 +48,5 @@ taf_semibin_mount() {
         printf -- '--volume=%s:/resources/semibin2:ro' "$taf_semibin_root"
     fi
 }
-<taf-app:container:ghcr.io/taffish/semibin2:2.6.0-r1$@[docker/podman: --platform linux/amd64 "$(taf_semibin_mount docker)"][apptainer: "$(taf_semibin_mount apptainer)"]>
+<taf-app:container:ghcr.io/taffish/semibin2:2.6.0-r2$@[docker/podman: --platform linux/amd64 "$(taf_semibin_mount docker)"][apptainer: "$(taf_semibin_mount apptainer)"]>
 SemiBin2 ::*ARGV*::

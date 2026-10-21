@@ -1,0 +1,6 @@
+{
+  "artifact": "taf-semibin2-v2.6.0-r2",
+  "schema": "taffish.build/v1",
+  "source_sha256": "00dbca750c8fc54413fc928b28002bbdaf93e91b7b36f4e7f3a641a4931c9295",
+  "wrapper_sha256": "2a2b5ebb511b86aa298066a3189848aabbe0e00e4ed6fe26ce64b59260d6de9f"
+}

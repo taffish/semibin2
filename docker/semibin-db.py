@@ -269,7 +269,7 @@ def install(root, recipe, source_dir, reserve):
             (stage / 'recipe.json').write_bytes(canonical(recipe) + b'\n')
             (stage / 'RESOURCE_LICENSE.txt').write_text(recipe['source'] + '\n\n' + recipe['license'] + '\n')
             inventory = [dict(name=p.name, size=p.stat().st_size, sha256=sha(p)) for p in sorted(stage.iterdir())]
-            record = dict(schema='taffish.semibin.db.v1', app_release='2.6.0-r1', resource=unit,
+            record = dict(schema='taffish.semibin.db.v1', app_release='2.6.0-r2', resource=unit,
                           recipe_sha256=identity, files=inventory,
                           archives=[dict(name=item['name'], sha256=sha(blob), size=blob.stat().st_size,
                               source_verification='sha256' if 'sha256' in item else 'upstream-md5-only')
@@ -293,7 +293,7 @@ def main():
         epilog='Use an existing installer-owned private/site root. Members: 0755/0644. No --force; '
         'quarantine exact damaged members only after confirming no installer is running. '
         'Repeat network installation to resume. Always use actual writable/read-only backend binds.')
-    parser.add_argument('--version', action='version', version='semibin-db 2.6.0-r1')
+    parser.add_argument('--version', action='version', version='semibin-db 2.6.0-r2')
     sub = parser.add_subparsers(dest='command', required=True)
     pin = sub.add_parser('pin', help='reviewed local archive to immutable recipe; no network')
     pin.add_argument('--archive', required=True, type=Path)

@@ -5,12 +5,17 @@ from pathlib import Path
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 
 SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
 
 
 def interrupted(signum, frame):
+    # A second cancellation must not interrupt ownership cleanup or replace the first exit status.
+    active = sys.exc_info()[1]
+    if isinstance(active, SystemExit) and active.code in {128 + sig for sig in SIGNALS}:
+        return
     raise SystemExit(128 + signum)
 
 
@@ -24,16 +29,28 @@ def deferred_signals():
 
     def check():
         if pending:
-            raise SystemExit(128 + pending[0])
+            interrupted(pending[0], None)
 
     try:
-        for sig in SIGNALS:
-            previous[sig] = signal.signal(sig, remember)
+        # Only handler transitions are masked; the body and spawned children retain the caller's mask.
+        previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, SIGNALS)
+        try:
+            for sig in SIGNALS:
+                previous[sig] = signal.signal(sig, remember)
+        finally:
+            signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
         yield check
     finally:
-        for sig, handler in previous.items():
-            signal.signal(sig, handler)
-        check()
+        previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, SIGNALS)
+        try:
+            try:
+                # Establish the first pending cancellation before restored handlers see another signal.
+                check()
+            finally:
+                for sig, handler in previous.items():
+                    signal.signal(sig, handler)
+        finally:
+            signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
 
 
 def run_owned(argv, **kwargs):

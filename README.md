@@ -2,7 +2,8 @@
 
 `semibin2` packages SemiBin 2.6.0 for TAFFISH.
 
-- command: `taf-semibin2`; kind: `tool`; package: `2.6.0-r1`
+- command: `taf-semibin2`; kind: `tool`; package: `2.6.0-r2`
+- image: `ghcr.io/taffish/semibin2:2.6.0-r2`
 - packaging license: Apache-2.0; upstream software: MIT
 - upstream: https://github.com/BigDataBiology/SemiBin
 - immutable source: `v2.6.0`, commit `851bbb2ee444b1df2d49f56c794ba731fda69327`
@@ -26,6 +27,24 @@ Fixed digests/checksums detect changed bytes, not permanent retention: registry 
 Conda artifacts may disappear, and Debian APT indexes can change. Dockerfile
 comments identify these sources and the successor-release repair boundary.
 
+### Packaging revision r2
+
+This is a same-upstream packaging repair, not an algorithm or dependency
+update. The public r1 image contained `/opt/semibin2/share/testdata` with mode
+0644 after `COPY --chmod=0644`, preventing ordinary Apptainer users from traversing
+the directory and opening its smoke scripts. r2 fixes directory traversal permissions
+at build time while retaining ordinary-file modes.
+
+Resource-runtime cancellation is also hardened to preserve the first INT/TERM/HUP
+while cleaning owned directories. Pending cancellation is established before restoring
+handlers; signal masking protects only handler transitions, not the long-running body
+or child processes. `semibin-db --version` and
+new resource manifests' `app_release` are synchronized to `2.6.0-r2`. Existing valid
+r1 resource records remain verifiable and reusable without rewriting them.
+The upstream commit, Conda lock and checksums, twelve models, scientific code and
+scientific command/output interfaces remain unchanged. The canonical Action is not
+modified. See Testing for the candidate validation and its boundaries.
+
 ## Scope
 
 Supports default self-supervised binning, pretrained environments, single/coassembly
@@ -43,14 +62,20 @@ This is not a GPU image. Official optional CUDA PyTorch is a separate installati
 not enabled by `--engine gpu` or a container runtime flag.
 Official entry points/extras and installation documentation expose no in-package GUI.
 ATLAS and Galaxy are separate workflow/service integrations, not a hidden local GUI.
+The upstream NotebookLM documentation assistant is an external service, not a
+container GUI or runtime dependency.
 
 ## Container Contents
 
 `SemiBin2`, Python 3.11, CPU PyTorch, NumPy, pandas, scikit-learn, python-igraph,
 samtools, bedtools, HMMER, Prodigal, FragGeneScan, MMseqs2, argcomplete, shtab and `semibin-db`.
-The digest-pinned micromamba base is used for a two-stage build. Build caches,
-headers, static libraries, sysroots, bytecode and non-runtime tests/docs are removed
-only after original Conda notices are archived. Exact package inventories, original
+The digest-pinned micromamba base is used for a two-stage build. Package caches,
+top-level development headers/documentation, static libraries, sysroots, bytecode,
+selected site-package tests and Conda installation-test payloads are removed only after
+original Conda notices are archived. Package-internal interfaces and headers,
+standard-library support/test modules and upstream reference resources are retained;
+this is not a claim that all headers or test-named directories are absent.
+Exact package inventories, original
 notice files, hashes and split-package attribution live under
 `/opt/semibin2/share/{doc,licenses}`. `conda-licenses.py verify` is read-only.
 
@@ -65,13 +90,13 @@ exact package version and check its wrapper identity:
 
 ```sh
 taf update
-taf install semibin2 2.6.0-r1
-taf-semibin2-v2.6.0-r1 --version
+taf install semibin2 2.6.0-r2
+taf-semibin2-v2.6.0-r2 --version
 ```
 
-The versioned command identifies package `2.6.0-r1`. The unversioned
+The versioned command identifies package `2.6.0-r2`. The unversioned
 `taf-semibin2` alias follows the latest installed local version; use
-`taf-semibin2-v2.6.0-r1` when this exact package is required.
+`taf-semibin2-v2.6.0-r2` when this exact package is required.
 
 ## Usage and Command Mode
 
@@ -103,10 +128,10 @@ contamination, biological interpretation or suitability of an environment model.
 
 | Capability | Docker | Podman | Apptainer |
 | --- | --- | --- | --- |
-| Native Linux CPU | amd64 PASS, normal + read-only | amd64 PASS, normal + read-only | amd64 PASS, actual read-only SIF |
+| Native Linux CPU | amd64; r2 candidate validated | amd64; rootless r2 candidate validated | amd64; same-OCI read-only SIF validated |
 | ARM host | explicit amd64 emulation encoded in wrapper; not separately validated in this release | same | unsupported: use native x86_64 Linux or Docker/Podman |
 | GPU | unsupported CPU runtime; use CPU or separate upstream CUDA environment | same | same |
-| Shared DB/custom model | actual optional read-only bind | actual optional read-only bind | actual read-only bind into SIF |
+| Shared DB/custom model | optional read-only bind; synthetic reuse validated | optional read-only bind; synthetic reuse validated | read-only bind into SIF; synthetic reuse validated |
 | GUI | N/A, CLI package; Galaxy/ATLAS are separate services/workflows | same | same |
 
 Use `TAFFISH_CONTAINER_BACKEND=docker|podman|apptainer` with the ordinary wrapper.
@@ -187,6 +212,8 @@ Site directory ownership is never changed by an ordinary user's invocation.
 uses an installer-owned root (not group/world writable), private 0700 download
 cache, an exclusive lock, resumable HTTPS, exact recipe size/checksum, staging, full member
 inventory, READY hash and no-clobber promotion. Installed members are 0755/0644.
+New manifests record `app_release: 2.6.0-r2`; an existing valid r1 member remains
+verifiable and is reused idempotently without rewriting its manifest or contents.
 Repeat the same command to resume or verify an already complete installation.
 Use `--source-dir DIR` for an offline archive import, `--dry-run` for a preview,
 and `verify` / `list` for full read-only inventory checks.
@@ -256,51 +283,47 @@ and biological taxonomy validation are not part of this tiny engineering suite.
 
 ## Testing
 
-The 2.6.0-r1 candidate passed native amd64 engineering validation on xjp with
-Docker 26.1.5, rootless Podman 5.4.2 and Apptainer 1.5.3. Publication is a separate
-maintainer action; local validation does not imply a published GitHub/GHCR release.
-Smoke covers package identity, all main helps, 12-model real CPU inference, model
-save/load, FASTA concatenation and full-header API, real BAM feature extraction,
-one-epoch training, explicit skill installation, local GTDB policy, synthetic
-MMseqs database preparation/reuse and negative resource/notice checks.
-All 150 exact commands passed: combined-exist, 19 individual exist probes and
-10 tests, independently in Docker/Podman normal and read-only roots and an actual
-same-OCI read-only SIF. The three real wrappers passed 96 main-path checks,
-48 prepared-root discovery/override/disable checks, trained/bundled-model synthetic
-binning, and trusted legacy-model conversion. A private root-owned synthetic
-database was installed once, then read without write permission by ordinary users
-through all three backends; another numeric UID also read the models/database.
-This is a tested sharing mechanism, not an installation into real system directories.
-Site path precedence has a separate private-prefix contract test.
+The 2.6.0-r2 candidate was built and validated on native Linux amd64 using the
+canonical app-root context, Buildx 0.38.0 and BuildKit 0.33.1 with its builtin
+frontend. Builder semantics were aligned with the publishing Action; the local
+Docker Engine and per-build resource limits were not identical to CI. The Action
+itself remains byte-for-byte unchanged. Published-image digest and Index confirmation
+are independent post-release checks, not implied by these candidate results.
 
-Resource tests cover actual writable/read-only binds, HTTPS partial resume,
-original failure exit/log-tail visibility, and 54 externally signalled lock/stage/
-promotion/offline-copy windows with recovery and idempotence. These include empty
-and nonempty partials on all three backends. Each case first installs a valid old
-member and checks its complete file hashes after interruption and retry; the 216
-receipts include old-member installation, interruption, recovery and idempotence.
-Fresh offline smoke also checks missing/empty/prefix/complete partials and rejection
-of corrupt, oversized or symlink partials. Nine further real-curl interruption
-cases cover INT/TERM/HUP across the three wrappers. Old resources and completed
-promotions remain intact. Temporary children, locks and unpublished stages are
-checked after exit. The image explicitly fixes copied runtime file permissions,
-so an unusually restrictive source-context umask does not require root at runtime.
-No complete production GTDB or biological MAG quality validation is claimed.
-Native ARM is not declared. ARM-host emulation is not separately validated for this
-candidate. Current backend/platform receipts, rather than the previous release's
-results, determine readiness. The canonical Action is byte-for-byte unchanged.
+The manifest retains 19 individual exist probes and 10 independent tests. The runner
+adds one combined-exist check: 30 invocations per group, 210 successful invocations
+across Docker and rootless Podman normal/read-only/non-root-read-only groups, and a
+same-OCI actual read-only Apptainer SIF. Every command ran fresh and offline.
+Coverage includes package identity, main helps,
+12-model real CPU inference, model save/load, FASTA concatenation and full-header
+API, real BAM feature extraction, one-epoch training, explicit skill installation,
+local GTDB policy, synthetic MMseqs database preparation/reuse and negative
+resource/notice checks. Three-backend permission regressions validated 1,210 paths,
+their parent chains and ordinary-user reads with UID/GID 1001 and no effective
+capabilities. A deliberately bad 0644 directory was rejected in each backend;
+no runtime chmod of the installed tree, writable SIF or masking bind was used.
 
-The final image is 2,251,016,624 bytes (about 2.25 GB / 2.10 GiB); `/opt/conda`
-is about 2.1 GiB and `/opt/semibin2` about 6.7 MiB. CPU numerical libraries and
-MMseqs runtime variants dominate. Download caches, headers/sysroots and static
-libraries are excluded from the final copied runtime. Approximately 21 MiB of
-upstream offline manual pages and 18 MiB of Easel reference material are retained
-as user reference alongside the packaged helper utilities; these are not download
-caches, and their retention is intentional. No required model/training data
-is removed. The current lock has 139 packages; notices are archived before pruning
-and their 305 notice files passed verification in each backend. The existing
-two-stage pruning is retained; no required model or optional ORF executable was
-removed merely to reduce size.
+Real-wrapper regressions passed main paths, prepared-root discovery/override/
+disable, trained/bundled-model synthetic binning, trusted legacy-model conversion,
+actual writable/read-only binds and ordinary-user reuse of a private admin-owned
+synthetic database. Resource tests passed failure-log visibility, HTTPS/offline
+partial resume, externally signalled lock/stage/promotion/copy windows, cleanup,
+old-member preservation, recovery and idempotence, including valid r1 resource records
+reused without rewriting provenance. INT/TERM/HUP interruption passed at six installer
+windows per backend (54 injected cases), including before promotion; exits and owned
+stage/lock/child cleanup were checked. These are engine/process-group injections,
+not PTY keyboard-interaction tests. The runtime's nine regression tests additionally
+cover 108 repeated-signal and 36 restoration cases and passed in every direct group.
+
+The 139-package lock, archived original notices, models and two-stage pruning are
+retained. CPU numerical libraries and MMseqs dominate the image; required models,
+ORF executables, approximately 21 MiB of offline manual pages and 18 MiB of Easel
+reference material are intentionally retained. The candidate image is 2,246,722,323
+bytes (about 2.25 GB); 139 packages and 305 archived notice files passed verification.
+These tiny engineering fixtures do not validate a complete production GTDB download,
+full taxonomy/createtsv or separate CRAM paths, biological MAG quality, or deployment
+into real system directories. Native ARM is not declared; ARM-host emulation was not
+separately validated, and the image does not support GPU execution.
 
 ## License and Citation
 

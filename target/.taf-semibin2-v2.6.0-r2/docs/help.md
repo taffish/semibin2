@@ -1,4 +1,4 @@
-semibin2 2.6.0-r1
+semibin2 2.6.0-r2
 
 Purpose:
   Bin metagenomic contigs with CPU self-supervised learning or a built-in model.
