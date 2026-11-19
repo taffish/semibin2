@@ -1,0 +1,32 @@
+<shell>
+# Expose a verified optional resource; never infer an analysis argument or choose a member.
+taf_semibin_fail() { printf >&2 'taf-semibin2: %s\n' "$1"; exit 64; }
+taf_semibin_root=
+case "${TAFFISH_SEMIBIN_DB_AUTO_MOUNT-1}" in
+    0|false|FALSE|no|NO|off|OFF) ;;
+    1|true|TRUE|yes|YES|on|ON)
+        if test "${TAFFISH_SEMIBIN_DB_PATH+x}" = x; then
+            taf_semibin_root=$TAFFISH_SEMIBIN_DB_PATH
+            test -n "$taf_semibin_root" || taf_semibin_fail 'invalid/unprepared shared DB root: empty explicit path'
+        else
+            for taf_semibin_path in "${HOME}/.local/share/taffish/databases/semibin2" /usr/local/share/taffish/databases/semibin2 /opt/taffish/databases/semibin2; do
+                if test -e "$taf_semibin_path" || test -L "$taf_semibin_path"; then taf_semibin_root=$taf_semibin_path; break; fi
+            done
+        fi
+        if test -n "$taf_semibin_root"; then
+            case "$taf_semibin_root" in /*) ;; *) taf_semibin_fail 'invalid/unprepared shared DB root: use an absolute path' ;; esac
+            test -d "$taf_semibin_root" || taf_semibin_fail "invalid/unprepared shared DB root: $taf_semibin_root"
+            taf_semibin_root=$(CDPATH= cd "$taf_semibin_root" && pwd -P) || taf_semibin_fail 'cannot resolve shared DB root'
+            case "$taf_semibin_root" in *:*|*,*) taf_semibin_fail 'invalid/unprepared shared DB root: unsupported bind separator' ;; esac
+            command -v python3 >/dev/null 2>&1 || taf_semibin_fail 'auto-mount needs host Python 3; disable discovery for a verified manual bind'
+            python3 -I -B "::*LOADDIR*::/semibin_validation.py" "$taf_semibin_root" || taf_semibin_fail 'invalid/unprepared shared DB root: verify or repair; disable auto-mount for setup'
+        fi ;;
+    *) taf_semibin_fail 'invalid TAFFISH_SEMIBIN_DB_AUTO_MOUNT; use 0 or 1' ;;
+esac
+taf_semibin_mount() {
+    if test -z "$taf_semibin_root"; then printf -- '--env=TAFFISH_ENV=TAFFISH'
+    elif test "$1" = apptainer; then printf -- '--bind=%s:/resources/semibin2:ro' "$taf_semibin_root"
+    else printf -- '--volume=%s:/resources/semibin2:ro' "$taf_semibin_root"; fi
+}
+<taf-app:container:ghcr.io/taffish/semibin2:2.6.1-r1$@[docker/podman: --platform linux/amd64 "$(taf_semibin_mount docker)"][apptainer: "$(taf_semibin_mount apptainer)"]>
+SemiBin2 ::*ARGV*::

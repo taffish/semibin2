@@ -20,12 +20,13 @@ def run(*argv, fail=False, marker=None):
 
 def core():
     import SemiBin, numpy, pandas, sklearn, igraph, requests, safetensors, tqdm, numexpr, torch, argcomplete, shtab
-    assert md.version('SemiBin') == '2.6.0'
+    assert md.version('SemiBin') == '2.6.1'
     assert torch.version.cuda is None, 'This release is explicitly CPU-only'
-    assert run('SemiBin2', '--version').strip() == '2.6.0'
-    for sub in ('single_easy_bin', 'multi_easy_bin', 'train_self', 'train_semi', 'bin',
+    assert run('SemiBin2', '--version').strip() == '2.6.1'
+    top_help = run('SemiBin2', '--help')
+    for sub in ('single_easy_bin', 'multi_easy_bin', 'train_self', 'train_semi', 'bin', 'bin_long',
                 'generate_cannot_links', 'concatenate_fasta', 'install-skills'):
-        assert sub in run('SemiBin2', '--help')
+        assert sub in top_help
         run('SemiBin2', sub, '--help')
     run('SemiBin2', 'check_install', marker='Installation OK')
     # Stable text/file assertions only; no man, terminal-width or GUI rendering.
@@ -48,6 +49,34 @@ def core():
             pass
         else:
             raise AssertionError('missing/forced GTDB must fail closed')
+
+
+def long_file():
+    """An independent process must see the complete file at the upstream hand-off."""
+    import argparse
+    import numpy as np
+    import pandas as pd
+    import torch
+    from unittest.mock import patch
+    from SemiBin.long_read_cluster import cluster_long_read
+    from SemiBin.semi_supervised_model import Semi_encoding_single
+    class HandoffObserved(Exception):
+        pass
+    records = {'first': 'ACGT' * 25, 'last': 'TTTT' * 25}
+    expected = ''.join(f'>{name}\n{seq}\n' for name, seq in records.items()).encode()
+    def read_entire_file(path, *_args, **_kwargs):
+        received = subprocess.check_output(['cat', str(path)], timeout=10)
+        assert received == expected, (len(received), len(expected))
+        raise HandoffObserved
+    data = pd.DataFrame(np.zeros((2, 137)), index=list(records))
+    args = argparse.Namespace(num_process=1, orf_finder='prodigal', prodigal_output_faa=None)
+    with patch('SemiBin.long_read_cluster.estimate_seeds', read_entire_file):
+        try:
+            cluster_long_read(logging.getLogger(), Semi_encoding_single(136), data,
+                              torch.device('cpu'), False, 1, '.', records, binned_length=0, args=args, minfasta=0)
+        except HandoffObserved:
+            return
+    raise AssertionError('did not reach the marker-reader hand-off')
 
 
 def models():
@@ -130,6 +159,6 @@ if __name__ == '__main__':
     mode = sys.argv[1]
     with tempfile.TemporaryDirectory(prefix='taf-semibin-smoke-') as tmp:
         os.chdir(tmp)
-        {'core': core, 'models': models, 'features': features, 'skills': skills,
+        {'core': core, 'models': models, 'features': features, 'skills': skills, 'long_file': long_file,
          'orfs': orfs, 'completion': completion}[mode]()
     print('PASS semibin-smoke ' + mode)

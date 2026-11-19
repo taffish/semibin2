@@ -106,8 +106,18 @@ class Ownership(unittest.TestCase):
                         os.kill(os.getpid(), sig)
                 self.assertEqual((root / 'published/new').read_text(), 'NEW')
 
+    def test_replaced_transaction_name_is_preserved(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with self.assertRaisesRegex(ValueError, 'transaction name changed'):
+                with runtime.private_directory(dir=root) as stage:
+                    stage.rename(root / 'saved')
+                    stage.mkdir()
+                    (stage / 'sentinel').write_text('KEEP')
+            self.assertEqual((stage / 'sentinel').read_text(), 'KEEP')
+
     def test_repeated_signals_during_cleanup(self):
-        real_signal, real_rmtree = signal.signal, shutil.rmtree
+        real_signal, real_remove = signal.signal, runtime.remove_owned
         phases = ('before-install', 'between-install', 'cleanup',
                   'before-restore', 'between-restore', 'after-restore')
         for repeat in range(2):
@@ -142,13 +152,13 @@ class Ownership(unittest.TestCase):
                                         inject()
                                     return result
 
-                                def remove(path, *args, **kwargs):
-                                    if phase == 'cleanup' and Path(path) == stage:
+                                def remove(parent, name, fd, recursive):
+                                    if phase == 'cleanup' and stage is not None and name == stage.name:
                                         inject()
-                                    return real_rmtree(path, *args, **kwargs)
+                                    return real_remove(parent, name, fd, recursive)
 
                                 try:
-                                    with patch.object(signal, 'signal', change), patch.object(shutil, 'rmtree', remove):
+                                    with patch.object(signal, 'signal', change), patch.object(runtime, 'remove_owned', remove):
                                         with self.assertRaises(SystemExit) as result:
                                             with runtime.owned_lock(lock):
                                                 with runtime.private_directory(dir=root) as stage:

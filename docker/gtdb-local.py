@@ -22,6 +22,9 @@ def find_or_download_gtdb(logger, GTDB_reference_dir, force):
         raise RuntimeError('GTDB not selected: pass --reference-db DIRECTORY '
                            'or TAFFISH_SEMIBIN_DB_DIR with an actual read-only bind.')
     root = Path(value)
+    if any(os.path.lexists(root / marker) for marker in ('manifest.json', 'READY', 'recipe.json', 'RESOURCE_LICENSE.txt')):
+        from semibin_validation import verify
+        verify(root, root.name)
     for name in ('GTDB', 'GTDB.index', 'GTDB.dbtype'):
         if not (root / name).is_file():
             raise RuntimeError(f'Missing GTDB member {root / name}; prepare the database '

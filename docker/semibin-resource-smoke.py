@@ -61,7 +61,7 @@ def resources():
                           ('oversize', archive_bytes+b'X'), ('symlink', None)]:
         scratch = Path.cwd() / ('partial-'+label); scratch.mkdir(mode=0o755)
         cache = scratch / '.downloads'; cache.mkdir(mode=0o700)
-        old = scratch / 'unrelated-old'; old.mkdir(); (old / 'sentinel').write_bytes(b'KEEP')
+        old = scratch / '.old-recovery'; old.mkdir(); (old / 'sentinel').write_bytes(b'KEEP')
         partial = cache / (digest+'.part')
         if label == 'symlink': partial.symlink_to(old / 'sentinel')
         else: partial.write_bytes(prefix)
@@ -89,7 +89,8 @@ def resources():
     item['md5'] = hashlib.md5((source / item['name']).read_bytes()).hexdigest()
     del item['sha256']
     item['extract'] = 'flat-GTDB'
-    helper.GTDB95 = synthetic_catalog
+    import semibin_validation
+    helper.GTDB95 = semibin_validation.GTDB95 = synthetic_catalog
     helper.recipe_validate(synthetic_catalog)
     md5root = Path.cwd() / 'md5-only'; md5root.mkdir(mode=0o755)
     helper.install(md5root, synthetic_catalog, source, 0)
@@ -99,7 +100,7 @@ def resources():
     helper.install(md5root, synthetic_catalog, source, 0)
     verify = ['semibin-db', 'verify', '--db-root', str(root), '--id', 'synthetic--1']
     record = json.loads(run('verify', verify))
-    assert record['app_release'] == '2.6.0-r2'
+    assert record['app_release'] == '2.6.1-r1'
     assert len(record['files']) >= 5 and not list(root.glob('*.stage-*'))
     # Old prepared members remain readable/idempotent; verification must not rewrite provenance.
     current_manifest = (member / 'manifest.json').read_bytes()
@@ -124,6 +125,17 @@ def resources():
     second = install.copy(); second[second.index('--recipe') + 1] = str(source / 'second.json')
     run('second-member', second, marker='installed:')
     assert len(json.loads(run('partial-inventory', ['semibin-db', 'list', '--db-root', str(root)]))) == 2
+    sibling = root / 'second--1' / 'GTDB.index'
+    original = sibling.read_bytes()
+    sibling.write_bytes(bytes([original[0] ^ 1]) + original[1:])
+    third_recipe = dict(recipe, id='third')
+    (source / 'third.json').write_text(json.dumps(third_recipe))
+    third = install.copy(); third[third.index('--recipe')+1] = str(source / 'third.json')
+    for label, cmd in [('existing', install), ('new', third), ('verify', verify)]:
+        run('bad-sibling-' + label, cmd, fail=True, marker='checksum/size mismatch')
+    assert not (root / 'third--1').exists() and (member / 'READY').read_bytes() == identity
+    sibling.write_bytes(original)
+    run('sibling-recovered', install, marker='already complete:')
     bad = copy.deepcopy(recipe); bad['id'] = 'bad'; bad['files'][0]['sha256'] = '0' * 64
     (source / 'bad.json').write_text(json.dumps(bad))
     wrong = install.copy(); wrong[wrong.index('--recipe') + 1] = str(source / 'bad.json')

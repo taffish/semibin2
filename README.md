@@ -1,49 +1,42 @@
 # semibin2
 
-`semibin2` packages SemiBin 2.6.0 for TAFFISH.
+`semibin2` packages SemiBin 2.6.1 for TAFFISH.
 
-- command: `taf-semibin2`; kind: `tool`; package: `2.6.0-r2`
-- image: `ghcr.io/taffish/semibin2:2.6.0-r2`
+- command: `taf-semibin2`; kind: `tool`; package: `2.6.1-r1`
+- image: `ghcr.io/taffish/semibin2:2.6.1-r1`
 - packaging license: Apache-2.0; upstream software: MIT
 - upstream: https://github.com/BigDataBiology/SemiBin
-- immutable source: `v2.6.0`, commit `851bbb2ee444b1df2d49f56c794ba731fda69327`
+- immutable source: `v2.6.1`, commit `bfce0e6000795bca61e442431e332928d6dae4df`
 
 ## What This App Packages
 
 A thin automatic-command wrapper around `SemiBin2`, CPU PyTorch and its
-runtime dependencies. Version 2.6.0 adds argcomplete/static shell completion,
-the `check-install` alias and earlier diagnostics for invalid inputs or missing
-external tools. Minimums are Python 3.11, pandas 3 and PyTorch 2.4. The existing
-Python full-header API remains available; CLI concatenation still prefixes IDs.
+runtime dependencies. Version 2.6.1 closes the temporary FASTA before handing it
+to marker estimation in long-read binning. This avoids silently truncated input;
+command names, numerical algorithms and output formats are unchanged.
 
 Runtime comes from the exact Bioconda package
-`semibin=2.6.0=pyhdfd78af_0`, SHA256
-`fd66ea04d54db8bbee2db28bcc73fcc1e57c7bf3c79e9af2b0f512a244a14443`.
+`semibin=2.6.1=pyhdfd78af_0`, SHA256
+`6803eb01519dd4271bc3bf0658757a9be285be57794cbbd323050e1e5df24340`.
 The official wheel has SHA256
-`fd6667d9df602da1acf379bb067a4a78d035d18189ccea470d842b7d2677d342`
+`b6b31a2ab2609209a2b2886c405490487fb054ef60076578f92b48dc8df70dd8`
 (official release digest; the runtime uses the separately verified Conda archive).
 Every Conda dependency is fixed by URL/build and independently SHA256-verified.
 Fixed digests/checksums detect changed bytes, not permanent retention: registry or
 Conda artifacts may disappear, and Debian APT indexes can change. Dockerfile
 comments identify these sources and the successor-release repair boundary.
 
-### Packaging revision r2
+### Packaging changes
 
-This is a same-upstream packaging repair, not an algorithm or dependency
-update. The public r1 image contained `/opt/semibin2/share/testdata` with mode
-0644 after `COPY --chmod=0644`, preventing ordinary Apptainer users from traversing
-the directory and opening its smoke scripts. r2 fixes directory traversal permissions
-at build time while retaining ordinary-file modes.
-
-Resource-runtime cancellation is also hardened to preserve the first INT/TERM/HUP
-while cleaning owned directories. Pending cancellation is established before restoring
-handlers; signal masking protects only handler transitions, not the long-running body
-or child processes. `semibin-db --version` and
-new resource manifests' `app_release` are synchronized to `2.6.0-r2`. Existing valid
-r1 resource records remain verifiable and reusable without rewriting them.
-The upstream commit, Conda lock and checksums, twelve models, scientific code and
-scientific command/output interfaces remain unchanged. The canonical Action is not
-modified. See Testing for the candidate validation and its boundaries.
+Automatic resource discovery and the database helper now verify the same complete
+inventory. A bad member prevents mounting the root or adding another member;
+repair or quarantine the exact damaged member first. Existing valid version-1
+resource inventories retain their original bytes and provenance on reuse. The
+runtime retains the ordinary-user directory permissions and interruption handling
+from the previous packaging revision. The Docker build limits the open-file count
+only inside the legacy installer process; it does not change host limits.
+The scientific algorithms and bundled weights are unchanged. The storage-only
+GTDB adaptation described below also checks explicitly selected managed members.
 
 ## Scope
 
@@ -90,13 +83,13 @@ exact package version and check its wrapper identity:
 
 ```sh
 taf update
-taf install semibin2 2.6.0-r2
-taf-semibin2-v2.6.0-r2 --version
+taf install semibin2 2.6.1-r1
+taf-semibin2-v2.6.1-r1 --version
 ```
 
-The versioned command identifies package `2.6.0-r2`. The unversioned
+The versioned command identifies package `2.6.1-r1`. The unversioned
 `taf-semibin2` alias follows the latest installed local version; use
-`taf-semibin2-v2.6.0-r2` when this exact package is required.
+`taf-semibin2-v2.6.1-r1` when this exact package is required.
 
 ## Usage and Command Mode
 
@@ -128,15 +121,14 @@ contamination, biological interpretation or suitability of an environment model.
 
 | Capability | Docker | Podman | Apptainer |
 | --- | --- | --- | --- |
-| Native Linux CPU | amd64; r2 candidate validated | amd64; rootless r2 candidate validated | amd64; same-OCI read-only SIF validated |
-| ARM host | explicit amd64 emulation encoded in wrapper; not separately validated in this release | same | unsupported: use native x86_64 Linux or Docker/Podman |
+| Native Linux CPU | linux/amd64 | linux/amd64 | linux/amd64 read-only SIF |
 | GPU | unsupported CPU runtime; use CPU or separate upstream CUDA environment | same | same |
 | Shared DB/custom model | optional read-only bind; synthetic reuse validated | optional read-only bind; synthetic reuse validated | read-only bind into SIF; synthetic reuse validated |
 | GUI | N/A, CLI package; Galaxy/ATLAS are separate services/workflows | same | same |
 
 Use `TAFFISH_CONTAINER_BACKEND=docker|podman|apptainer` with the ordinary wrapper.
 Apptainer requires Linux. See installed help for all three concrete bind commands.
-Only `linux/amd64` is declared; no native ARM64 or ARM64-SIF promise is made.
+Only `linux/amd64` is declared. Docker/Podman request that platform explicitly; emulation is not native support.
 
 ## Resources, Databases, and Platform
 
@@ -212,8 +204,7 @@ Site directory ownership is never changed by an ordinary user's invocation.
 uses an installer-owned root (not group/world writable), private 0700 download
 cache, an exclusive lock, resumable HTTPS, exact recipe size/checksum, staging, full member
 inventory, READY hash and no-clobber promotion. Installed members are 0755/0644.
-New manifests record `app_release: 2.6.0-r2`; an existing valid r1 member remains
-verifiable and is reused idempotently without rewriting its manifest or contents.
+New manifests record `app_release: 2.6.1-r1`; older valid inventories are verified, not rewritten.
 Repeat the same command to resume or verify an already complete installation.
 Use `--source-dir DIR` for an offline archive import, `--dry-run` for a preview,
 and `verify` / `list` for full read-only inventory checks.
@@ -246,9 +237,12 @@ Priority is `TAFFISH_SEMIBIN_DB_PATH`, then personal
 an invalid explicit root, broken high-priority link, empty or incomplete prepared
 root fails closed, without silently selecting a lower-priority root. Colons/commas
 in physical mount paths are rejected; paths with spaces are supported.
-Preflight checks each visible member's required files and READY/manifest hash;
-use `semibin-db verify` for full data SHA256 verification after transfer or suspected
-corruption. Auto-mount is not a substitute for that potentially lengthy full scan.
+If a database root is discovered, host Python 3 (standard library only) verifies every
+visible member, its recipe, license, archive identity, file modes and payload SHA256
+before exposing it. This reads the full library and can take time. Default runs with
+no discovered root need no host Python. For repeated analysis of a large immutable site
+library, an administrator can verify it first, then users can disable automatic discovery
+and use an explicit read-only bind. Keep the root offline/immutable while in use.
 No upstream argv is parsed, and no GTDB member is scientifically selected: pass
 `--reference-db /resources/semibin2/gtdb--95` or another explicit prepared member.
 Set `TAFFISH_SEMIBIN_DB_AUTO_MOUNT=0` for setup into an empty standard root, to
@@ -281,49 +275,20 @@ and biological taxonomy validation are not part of this tiny engineering suite.
   `taf-semibin2 shtab -u --shell=bash --prog=SemiBin2 SemiBin.main.semibin_arg_parser > SemiBin2.bash`.
   Use it only in a shell exposing the actual upstream command; regenerate on upgrades.
 
-## Testing
+## Testing and support limits
 
-The 2.6.0-r2 candidate was built and validated on native Linux amd64 using the
-canonical app-root context, Buildx 0.38.0 and BuildKit 0.33.1 with its builtin
-frontend. Builder semantics were aligned with the publishing Action; the local
-Docker Engine and per-build resource limits were not identical to CI. The Action
-itself remains byte-for-byte unchanged. Published-image digest and Index confirmation
-are independent post-release checks, not implied by these candidate results.
-
-The manifest retains 19 individual exist probes and 10 independent tests. The runner
-adds one combined-exist check: 30 invocations per group, 210 successful invocations
-across Docker and rootless Podman normal/read-only/non-root-read-only groups, and a
-same-OCI actual read-only Apptainer SIF. Every command ran fresh and offline.
-Coverage includes package identity, main helps,
-12-model real CPU inference, model save/load, FASTA concatenation and full-header
-API, real BAM feature extraction, one-epoch training, explicit skill installation,
-local GTDB policy, synthetic MMseqs database preparation/reuse and negative
-resource/notice checks. Three-backend permission regressions validated 1,210 paths,
-their parent chains and ordinary-user reads with UID/GID 1001 and no effective
-capabilities. A deliberately bad 0644 directory was rejected in each backend;
-no runtime chmod of the installed tree, writable SIF or masking bind was used.
-
-Real-wrapper regressions passed main paths, prepared-root discovery/override/
-disable, trained/bundled-model synthetic binning, trusted legacy-model conversion,
-actual writable/read-only binds and ordinary-user reuse of a private admin-owned
-synthetic database. Resource tests passed failure-log visibility, HTTPS/offline
-partial resume, externally signalled lock/stage/promotion/copy windows, cleanup,
-old-member preservation, recovery and idempotence, including valid r1 resource records
-reused without rewriting provenance. INT/TERM/HUP interruption passed at six installer
-windows per backend (54 injected cases), including before promotion; exits and owned
-stage/lock/child cleanup were checked. These are engine/process-group injections,
-not PTY keyboard-interaction tests. The runtime's nine regression tests additionally
-cover 108 repeated-signal and 36 restoration cases and passed in every direct group.
-
-The 139-package lock, archived original notices, models and two-stage pruning are
-retained. CPU numerical libraries and MMseqs dominate the image; required models,
-ORF executables, approximately 21 MiB of offline manual pages and 18 MiB of Easel
-reference material are intentionally retained. The candidate image is 2,246,722,323
-bytes (about 2.25 GB); 139 packages and 305 archived notice files passed verification.
-These tiny engineering fixtures do not validate a complete production GTDB download,
-full taxonomy/createtsv or separate CRAM paths, biological MAG quality, or deployment
-into real system directories. Native ARM is not declared; ARM-host emulation was not
-separately validated, and the image does not support GPU execution.
+The release smoke tests check exact version and command availability, all twelve
+bundled models, FASTA hand-off to an independent reader, BAM feature extraction,
+one-epoch CPU training, model reuse, ORF tools, and optional database preparation.
+Use `taf-semibin2 SemiBin2 check_install` for the upstream installation check.
+The native x86_64 candidate passed Docker, rootless Podman and read-only
+Apptainer wrapper checks, including complete short/long-read command runs and
+read-only reuse after interruption. The image is 2,246,729,832 bytes; CPU PyTorch,
+numerical libraries, MMseqs2 and the twelve offline presets are retained.
+A small derived fixture checks storage and command behavior, not biological bin
+quality, analytics performance on GPFS, a production GTDB download, or GPU support.
+The full optional GTDB is not in the image. Inspect the shipped license inventory
+at `/opt/semibin2/share/licenses/conda`.
 
 ## License and Citation
 

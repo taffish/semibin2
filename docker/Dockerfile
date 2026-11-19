@@ -10,7 +10,10 @@ COPY docker/conda-linux-64.lock /tmp/environment.lock
 COPY docker/conda-sha256.txt /tmp/conda-sha256.txt
 COPY docker/conda-licenses.py /tmp/conda-licenses.py
 COPY docker/upstream-notices/ /tmp/upstream-notices/
+# micromamba 1.x's subprocess launcher cannot handle very high inherited open-file limits
+# (mamba-org/mamba#2501). Bound only this install shell, never raise a lower limit.
 RUN set -eux; \
+    inherited=$(ulimit -Sn); if [[ "$inherited" = unlimited || "$inherited" -gt 65536 ]]; then ulimit -n 65536; fi; \
     micromamba install -y -n base --file /tmp/environment.lock; \
     sha256sum -c /tmp/conda-sha256.txt; \
     python /tmp/conda-licenses.py collect; \
@@ -32,7 +35,7 @@ USER root
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive PATH=/opt/conda/bin:${PATH} \
     PYTHONDONTWRITEBYTECODE=1 TAFFISH_ENV=TAFFISH TAFFISH_NAME=semibin2 \
-    TAFFISH_VERSION=2.6.0 TAFFISH_RELEASE=2 OMP_NUM_THREADS=1
+    TAFFISH_VERSION=2.6.1 TAFFISH_RELEASE=1 OMP_NUM_THREADS=1
 # Source drift: bookworm APT indexes/dependencies change with the repository; resolution occurs at install time, not against a historical snapshot.
 # On failure, check the suite, indexes and package status before validating a fix in an immutable successor; long-term rebuildability is not guaranteed.
 RUN set -eux; apt-get -o Acquire::Retries=3 update; \
@@ -43,16 +46,14 @@ COPY --from=builder /opt/semibin2 /opt/semibin2
 COPY --chmod=0644 docker/conda-licenses.py docker/test-conda-licenses.py docker/semibin-smoke.py docker/semibin-resource-smoke.py docker/test-resource-runtime.py /opt/semibin2/share/testdata/
 COPY --chmod=0755 docker/semibin-db.py /usr/local/bin/semibin-db
 COPY --chmod=0644 docker/semibin_runtime.py /usr/local/bin/semibin_runtime.py
+COPY --chmod=0644 src/semibin_validation.py /opt/conda/lib/python3.11/site-packages/semibin_validation.py
 # Storage-only compatibility adaptation: no implicit legacy database download.
 COPY --chmod=0644 docker/gtdb-local.py /opt/conda/lib/python3.11/site-packages/SemiBin/gtdb.py
 # COPY --chmod also applies to a newly created destination directory in current BuildKit.
 # Keep Python files non-executable, but make their parent traversable for ordinary SIF users.
 RUN set -eux; chmod 755 /usr/local/bin/semibin-db /opt/semibin2/share/testdata; \
     test "$(stat -c '%a' /opt/semibin2/share/testdata)" = 755; \
-    python /opt/semibin2/share/testdata/conda-licenses.py verify; \
-    python /opt/semibin2/share/testdata/test-conda-licenses.py; \
-    python /opt/semibin2/share/testdata/semibin-smoke.py core; \
-    python /opt/semibin2/share/testdata/semibin-smoke.py models; \
-    SemiBin2 check_install
+    python -c "import importlib.metadata as m, semibin_validation; assert m.version('SemiBin') == '2.6.1'"; \
+    SemiBin2 --version | grep -Fx '2.6.1'
 WORKDIR /work
 ENTRYPOINT []

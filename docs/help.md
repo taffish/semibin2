@@ -1,4 +1,4 @@
-semibin2 2.6.0-r2
+semibin2 2.6.1-r1
 
 Purpose:
   Bin metagenomic contigs with CPU self-supervised learning or a built-in model.
@@ -31,13 +31,8 @@ Common options and outputs:
   Use a new output directory: upstream may overwrite existing output files.
 
 Backend and platform:
-  Native linux/amd64 only; Docker/Podman select amd64 automatically on ARM hosts.
-  Docker:    TAFFISH_CONTAINER_BACKEND=docker taf-semibin2 SemiBin2 check_install
-  Podman:    TAFFISH_CONTAINER_BACKEND=podman taf-semibin2 SemiBin2 check_install
-  Apptainer: TAFFISH_CONTAINER_BACKEND=apptainer taf-semibin2 SemiBin2 check_install
-  Apptainer needs native x86_64 Linux. macOS/ARM: use Docker/Podman emulation.
-  GPU is unsupported in this CPU image on all three backends; use this CPU path
-  or a separate GPU PyTorch environment following upstream installation docs.
+  This is a linux/amd64 CPU image. Pick Docker, Podman or Linux Apptainer with
+  TAFFISH_CONTAINER_BACKEND. Use a separate upstream environment if you need CUDA.
 
 Legacy GTDB preparation:
   Needed only for deprecated semi-supervised taxonomy paths, not the defaults.
@@ -72,7 +67,8 @@ Read-only site database or custom-model reuse:
     taf-semibin2 SemiBin2 generate_cannot_links -i contigs.fa -o links --reference-db /resources/gtdb--95 -p 8
   For a custom-model root, instead pass --model /resources/PROJECT/model.pt to bin.
   Auto root: TAFFISH_SEMIBIN_DB_PATH > personal path > /usr/local/share > /opt/taffish.
-  Auto members appear under /resources/semibin2; select the member explicitly.
+  With host Python 3, auto-mount checks every file before exposing /resources/semibin2.
+  Select the member explicitly. A full library scan can take time.
   TAFFISH_SEMIBIN_DB_AUTO_MOUNT=0 disables discovery; manual binds remain usable.
   Invalid roots fail closed. Full GTDB needs >100 GB plus archive/workspace.
 
